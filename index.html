@@ -151,12 +151,14 @@
   projectId: "spese-fabrizio-cecilia",
   storageBucket: "spese-fabrizio-cecilia.appspot.com",
   messagingSenderId: "178663591666",
-  appId: "1:178663591666:web:e849c54ff39c6f536ca6b6",
+  appId: "1:178663591666:web:e8490c54ff39c6f536ca6b6",
   measurementId: "G-1XCPCNKJEQ"
 };
 
     // Verifica configurazione: mostra messaggio chiaro se non sono state incollate le chiavi
     const CFG_OK = Object.values(firebaseConfig).every(v => v && !(String(v).includes('PASTE_')));
+    const debugInfo = `Proj: ${firebaseConfig.projectId || '?'} · Key: ${(firebaseConfig.apiKey||'').slice(0,6)}…${(firebaseConfig.apiKey||'').slice(-4)}`;
+    const userEmailBox = document.getElementById('userEmail'); if (userEmailBox) userEmailBox.textContent = debugInfo;
     if (!CFG_OK) {
       const msg = document.getElementById('authMsg');
       if (msg) {

@@ -146,13 +146,24 @@
   <script type="module">
     // === CONFIGURA QUI LA TUA FIREBASE ===
     const firebaseConfig = {
-      apiKey: "PASTE_API_KEY",
-      authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-      projectId: "PASTE_PROJECT_ID",
-      storageBucket: "PASTE_PROJECT_ID.appspot.com",
-      messagingSenderId: "PASTE_SENDER_ID",
-      appId: "PASTE_APP_ID"
-    };
+  apiKey: "AIzaSyABaw5hEm_IujZx7JLYF5Pm2o2bM5OnFg",
+  authDomain: "spese-fabrizio-cecilia.firebaseapp.com",
+  projectId: "spese-fabrizio-cecilia",
+  storageBucket: "spese-fabrizio-cecilia.appspot.com",
+  messagingSenderId: "178663591666",
+  appId: "1:178663591666:web:e849c54ff39c6f536ca6b6",
+  measurementId: "G-1XCPCNKJEQ"
+};
+
+    // Verifica configurazione: mostra messaggio chiaro se non sono state incollate le chiavi
+    const CFG_OK = Object.values(firebaseConfig).every(v => v && !(String(v).includes('PASTE_')));
+    if (!CFG_OK) {
+      const msg = document.getElementById('authMsg');
+      if (msg) {
+        msg.textContent = 'Config Firebase mancante: incolla apiKey, authDomain, projectId, ecc. (Project settings → Your apps → SDK setup & config).';
+        msg.className = 'small error';
+      }
+    }
 
     // Household ID: dev'essere lo stesso su entrambi i telefoni
     const HOUSEHOLD_ID = "casa-fabrizio-cecilia";
@@ -162,6 +173,10 @@
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, orderBy, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+    if (!CFG_OK) {
+      // Evita di inizializzare Firebase con chiavi invalide
+      throw new Error('FIREBASE_CONFIG_MISSING');
+    }
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);

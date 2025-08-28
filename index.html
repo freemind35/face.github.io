@@ -55,23 +55,23 @@
 
   <main class="wrap grid" style="margin-top:10px">
 
-    <!-- AUTH (admin/admin) -->
+    <!-- AUTH (admin@local.com / adminadmin) -->
     <section class="card" id="authCard">
       <div class="section-title">Accesso</div>
       <div class="grid-2">
         <div>
           <label>Utente</label>
-          <input id="username" type="text" placeholder="admin" value="admin" autocomplete="username" />
+          <input id="username" type="text" placeholder="admin oppure admin@local.com" value="admin" autocomplete="username" />
         </div>
         <div>
           <label>Password</label>
-          <input id="password" type="password" placeholder="admin" value="admin" autocomplete="current-password" />
+          <input id="password" type="password" placeholder="min 6 caratteri (es. adminadmin)" autocomplete="current-password" />
         </div>
       </div>
       <div class="row" style="margin-top:10px">
         <button class="primary" id="btnLogin">Entra</button>
       </div>
-      <div class="small muted" style="margin-top:8px">Credenziali: <b>admin / admin</b> (accesso completo su entrambi i telefoni).</div>
+      <div class="small muted" style="margin-top:8px">Credenziali consigliate: <b>admin@local.com / adminadmin</b> (puoi anche scrivere solo <b>admin</b> come utente).</div>
       <div id="authMsg" class="small"></div>
     </section>
 
@@ -186,8 +186,8 @@
 
     // ====== Costanti autenticazione admin ======
     const ADMIN_USER = 'admin';
-    const ADMIN_PASS = 'admin';
-    const ADMIN_EMAIL = 'admin@local'; // email virtuale usata per Firebase
+    const ADMIN_PASS = 'adminadmin';
+    const ADMIN_EMAIL = 'admin@local.com'; // email virtuale usata per Firebase
 
     // ====== Helpers ======
     const fmtEUR = (n) => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
@@ -231,34 +231,46 @@
     // ====== Login admin ======
     btnLogin.addEventListener('click', async () => {
       authMsg.textContent = '';
-      const u = (usernameEl.value || '').trim();
-      const p = (passEl.value || '').trim();
-
-      if (u !== ADMIN_USER || p !== ADMIN_PASS){
-        authMsg.textContent = 'Credenziali non valide.';
-        authMsg.className = 'small error';
-        return;
-      }
-
-      // Prova ad autenticare con Firebase usando email virtuale
+      let u = (usernameEl.value || '').trim();
+      let p = (passEl.value || '').trim();
+      // Normalizza: se l'utente scrive solo "admin", usa l'email tecnica
+      const email = u.includes('@') ? u : ADMIN_EMAIL;
+      // Se non arriva password, prova quella di default adminadmin
+      if (!p) p = ADMIN_PASS;
       try {
-        await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASS);
+        await signInWithEmailAndPassword(auth, email, p);
       } catch (e) {
-        // Se l'utente non esiste, crealo e riprova
+        // Se credenziali errate e stiamo usando l'account admin, prova fallback con password default
         const code = e && e.code;
-        if (code === 'auth/user-not-found' || code === 'auth/invalid-credential'){
+        if ((code === 'auth/invalid-credential' || code === 'auth/wrong-password') && email === ADMIN_EMAIL && p !== ADMIN_PASS) {
           try {
-            await createUserWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASS);
-            await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASS);
+            await signInWithEmailAndPassword(auth, email, ADMIN_PASS);
           } catch (e2) {
-            authMsg.textContent = 'Errore creazione/accesso admin: ' + (e2.message || e2);
+            // Se utente non esiste, crealo con la password di default
+            if (e2 && e2.code === 'auth/user-not-found') {
+              try {
+                await createUserWithEmailAndPassword(auth, email, ADMIN_PASS);
+                await signInWithEmailAndPassword(auth, email, ADMIN_PASS);
+              } catch (e3) {
+                authMsg.textContent = 'Errore creazione/accesso admin: ' + (e3.message || e3);
+                authMsg.className = 'small error';
+              }
+            } else {
+              authMsg.textContent = 'Errore accesso: ' + (e2.message || e2);
+              authMsg.className = 'small error';
+            }
+          }
+        } else if (e && e.code === 'auth/user-not-found') {
+          try {
+            await createUserWithEmailAndPassword(auth, email, p);
+            await signInWithEmailAndPassword(auth, email, p);
+          } catch (e4) {
+            authMsg.textContent = 'Errore creazione/accesso: ' + (e4.message || e4);
             authMsg.className = 'small error';
-            return;
           }
         } else {
           authMsg.textContent = 'Errore accesso: ' + (e.message || e);
           authMsg.className = 'small error';
-          return;
         }
       }
     });

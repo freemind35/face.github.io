@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Spese Condivise — Fabrizio & Cecilia</title>
+  <meta name="theme-color" content="#0ea5e9" />
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111827; --muted:#6b7280; --text:#e5e7eb;
+      --brand:#0ea5e9; --ok:#10b981; --danger:#ef4444; --shadow:0 10px 30px rgba(0,0,0,.35); --radius:20px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:radial-gradient(1200px 800px at 75% -200px, rgba(14,165,233,.35), transparent 60%), var(--bg);color:var(--text)}
+    .wrap{max-width:720px;margin:0 auto;padding:20px}
+    header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg, rgba(11,18,32,.97), rgba(11,18,32,.85));backdrop-filter:blur(6px)}
+    .bar{display:flex;align-items:center;gap:8px;padding:12px 16px}
+    .title{font-weight:700;letter-spacing:.3px}
+    .badge{font-size:12px;color:white;background:linear-gradient(135deg,#22d3ee,#3b82f6);padding:4px 8px;border-radius:999px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);box-shadow:var(--shadow);border-radius:var(--radius);padding:16px}
+    .muted{color:var(--muted)} .grid{display:grid;gap:12px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media (max-width:520px){.grid-2{grid-template-columns:1fr}}
+    input,select,button{width:100%;padding:14px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:#0f1626;color:var(--text);outline:none}
+    input::placeholder{color:#9ca3af}
+    button{cursor:pointer;font-weight:600;letter-spacing:.3px;transition:.2s transform ease,.2s opacity ease}
+    button.primary{background:linear-gradient(135deg,#06b6d4,#3b82f6);border-color:transparent;color:white}
+    button.ghost{background:transparent;border-color:rgba(255,255,255,.18)}
+    button:hover{transform:translateY(-1px)}
+    label{font-size:12px;text-transform:uppercase;color:#9ca3af;letter-spacing:.6px;margin-bottom:6px;display:block}
+    .row{display:flex;gap:10px;align-items:center} .row>*{flex:1}
+    .section-title{font-weight:700;margin:8px 0 12px 0}
+    .list{display:grid;gap:8px;margin-top:12px}
+    .item{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));border-radius:14px}
+    .item .who{font-weight:700} .item .desc{color:#cbd5e1} .item .date{font-size:12px;color:#94a3b8} .item .amount{margin-left:auto;font-weight:800}
+    .totals{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+    @media (max-width:520px){.totals{grid-template-columns:1fr}}
+    .tot-card{padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:#0e1525}
+    .tot-card h4{margin:0 0 6px 0;font-size:13px;color:#9ca3af}
+    .tot-card div{font-size:20px;font-weight:800}
+    .footer-space{height:28px}
+    .sticky-footer{position:sticky;bottom:0;padding:8px 16px;background:linear-gradient(0deg, rgba(11,18,32,.97), rgba(11,18,32,.70));backdrop-filter:blur(6px)}
+    .error{color:#fecaca;margin-top:6px} .ok{color:#bbf7d0;margin-top:6px} .right{margin-left:auto} .danger{color:#fecaca} .small{font-size:12px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar wrap">
+      <div class="title">💳 Spese Condivise</div>
+      <span class="badge">Fabrizio & Cecilia</span>
+      <div class="right small" id="userEmail"></div>
+    </div>
+  </header>
+
+  <main class="wrap grid" style="margin-top:10px">
+
+    <!-- AUTH (admin/admin) -->
+    <section class="card" id="authCard">
+      <div class="section-title">Accesso</div>
+      <div class="grid-2">
+        <div>
+          <label>Utente</label>
+          <input id="username" type="text" placeholder="admin" value="admin" autocomplete="username" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="password" type="password" placeholder="admin" value="admin" autocomplete="current-password" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="btnLogin">Entra</button>
+      </div>
+      <div class="small muted" style="margin-top:8px">Credenziali: <b>admin / admin</b> (accesso completo su entrambi i telefoni).</div>
+      <div id="authMsg" class="small"></div>
+    </section>
+
+    <!-- APP -->
+    <section class="grid" id="app" style="display:none">
+
+      <section class="card">
+        <div class="row" style="align-items:flex-end">
+          <div style="flex:2">
+            <label>Descrizione</label>
+            <input id="desc" type="text" placeholder="Es. Spesa supermercato" />
+          </div>
+          <div style="flex:1">
+            <label>Importo (€)</label>
+            <input id="amount" type="text" inputmode="decimal" placeholder="0,00" />
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:8px">
+          <div>
+            <label>Chi paga</label>
+            <select id="who">
+              <option value="" disabled selected>Seleziona</option>
+              <option>Fabrizio</option>
+              <option>Cecilia</option>
+            </select>
+          </div>
+          <div>
+            <label>Data (default oggi)</label>
+            <input id="date" type="date" />
+            <div class="small muted">✔️ Puoi inserire <b>spese precedenti</b> alla data attuale.</div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="ghost" id="btnClear">Pulisci</button>
+          <button class="primary" id="btnAdd">Aggiungi spesa</button>
+        </div>
+        <div id="addMsg" class="small"></div>
+      </section>
+
+      <section class="card">
+        <div class="row" style="align-items:flex-end; gap:12px">
+          <div style="flex:1">
+            <label>Filtro mese</label>
+            <input id="month" type="month" />
+          </div>
+          <button class="ghost" id="btnClearFilter" style="max-width:160px">Togli filtro</button>
+          <button class="ghost" id="btnLogout" style="max-width:120px">Esci</button>
+        </div>
+
+        <div class="totals">
+          <div class="tot-card"><h4>Totale periodo</h4><div id="totAll">€ 0,00</div></div>
+          <div class="tot-card"><h4>Fabrizio</h4><div id="totFab">€ 0,00</div></div>
+          <div class="tot-card"><h4>Cecilia</h4><div id="totCec">€ 0,00</div></div>
+        </div>
+
+        <div class="list" id="list"></div>
+      </section>
+
+      <div class="footer-space"></div>
+      <div class="sticky-footer">
+        <div class="row">
+          <div class="small muted">Household: <code id="householdLabel"></code></div>
+          <div class="right small muted">Salvataggio in tempo reale su Firestore</div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Firebase + App -->
+  <script type="module">
+    // === CONFIGURA QUI LA TUA FIREBASE ===
+    const firebaseConfig = {
+      apiKey: "PASTE_API_KEY",
+      authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+      projectId: "PASTE_PROJECT_ID",
+      storageBucket: "PASTE_PROJECT_ID.appspot.com",
+      messagingSenderId: "PASTE_SENDER_ID",
+      appId: "PASTE_APP_ID"
+    };
+
+    // Household ID: dev'essere lo stesso su entrambi i telefoni
+    const HOUSEHOLD_ID = "casa-fabrizio-cecilia";
+
+    // ====== Firebase init ======
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, orderBy, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    enableIndexedDbPersistence(db).catch(()=>{});
+
+    // ====== Costanti autenticazione admin ======
+    const ADMIN_USER = 'admin';
+    const ADMIN_PASS = 'admin';
+    const ADMIN_EMAIL = 'admin@local'; // email virtuale usata per Firebase
+
+    // ====== Helpers ======
+    const fmtEUR = (n) => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
+    const todayISO = () => new Date().toISOString().slice(0,10);
+    const monthISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+
+    // DOM
+    const authCard = document.getElementById('authCard');
+    const appView = document.getElementById('app');
+    const userEmail = document.getElementById('userEmail');
+    const usernameEl = document.getElementById('username');
+    const passEl = document.getElementById('password');
+    const btnLogin = document.getElementById('btnLogin');
+    const btnLogout = document.getElementById('btnLogout');
+    const authMsg = document.getElementById('authMsg');
+
+    const descEl = document.getElementById('desc');
+    const amountEl = document.getElementById('amount');
+    const whoEl = document.getElementById('who');
+    const dateEl = document.getElementById('date');
+    const addMsg = document.getElementById('addMsg');
+    const btnAdd = document.getElementById('btnAdd');
+    const btnClear = document.getElementById('btnClear');
+
+    const monthEl = document.getElementById('month');
+    const btnClearFilter = document.getElementById('btnClearFilter');
+
+    const listEl = document.getElementById('list');
+    const totAllEl = document.getElementById('totAll');
+    const totFabEl = document.getElementById('totFab');
+    const totCecEl = document.getElementById('totCec');
+    const householdLabel = document.getElementById('householdLabel');
+
+    householdLabel.textContent = HOUSEHOLD_ID;
+
+    // Defaults
+    dateEl.value = todayISO();
+    dateEl.max = todayISO(); // consente date precedenti, blocca solo il futuro
+    monthEl.value = monthISO();
+
+    // ====== Login admin ======
+    btnLogin.addEventListener('click', async () => {
+      authMsg.textContent = '';
+      const u = (usernameEl.value || '').trim();
+      const p = (passEl.value || '').trim();
+
+      if (u !== ADMIN_USER || p !== ADMIN_PASS){
+        authMsg.textContent = 'Credenziali non valide.';
+        authMsg.className = 'small error';
+        return;
+      }
+
+      // Prova ad autenticare con Firebase usando email virtuale
+      try {
+        await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASS);
+      } catch (e) {
+        // Se l'utente non esiste, crealo e riprova
+        const code = e && e.code;
+        if (code === 'auth/user-not-found' || code === 'auth/invalid-credential'){
+          try {
+            await createUserWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASS);
+            await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASS);
+          } catch (e2) {
+            authMsg.textContent = 'Errore creazione/accesso admin: ' + (e2.message || e2);
+            authMsg.className = 'small error';
+            return;
+          }
+        } else {
+          authMsg.textContent = 'Errore accesso: ' + (e.message || e);
+          authMsg.className = 'small error';
+          return;
+        }
+      }
+    });
+
+    btnLogout.addEventListener('click', () => signOut(auth));
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        userEmail.textContent = 'admin';
+        authCard.style.display = 'none';
+        appView.style.display = 'grid';
+        startListener();
+      } else {
+        userEmail.textContent = '';
+        appView.style.display = 'none';
+        authCard.style.display = 'block';
+        stopListener();
+      }
+    });
+
+    // ====== Firestore live query ======
+    let unsub = null; let cache = [];
+    function startListener(){
+      if (unsub) return;
+      const q = query(collection(db,'expenses'), where('householdId','==',HOUSEHOLD_ID), orderBy('date','desc'));
+      unsub = onSnapshot(q, (snap)=>{ cache = snap.docs.map(d=>({id:d.id,...d.data()})); render(); });
+    }
+    function stopListener(){ if (unsub){unsub(); unsub=null;} }
+
+    // ====== Aggiunta spesa ======
+    btnAdd.addEventListener('click', async () => {
+      addMsg.textContent = ''; addMsg.className = 'small';
+      try {
+        const desc = (descEl.value || '').trim();
+        const who = whoEl.value;
+        let amtStr = (amountEl.value || '').trim().replace(',', '.');
+        const amount = Number(amtStr);
+        const dateStr = dateEl.value;
+        if (!desc || !who || !dateStr || !isFinite(amount) || amount <= 0) {
+          addMsg.textContent = 'Compila descrizione, importo (>0), chi e data.';
+          addMsg.className = 'small error';
+          return;
+        }
+        const date = new Date(dateStr + 'T00:00:00');
+        const doc = {
+          householdId: HOUSEHOLD_ID,
+          who,
+          desc,
+          amountCents: Math.round(amount * 100),
+          date: Timestamp.fromDate(date),
+          createdAt: serverTimestamp(),
+          createdBy: (auth.currentUser && auth.currentUser.uid) || 'admin',
+        };
+        await addDoc(collection(db,'expenses'), doc);
+        addMsg.textContent = 'Spesa aggiunta ✅'; addMsg.className = 'small ok';
+        amountEl.value=''; descEl.value=''; whoEl.value=''; dateEl.value=todayISO();
+      } catch (e) {
+        addMsg.textContent = 'Errore salvataggio: ' + (e.message || e);
+        addMsg.className = 'small danger';
+      }
+    });
+
+    btnClear.addEventListener('click', () => { descEl.value=''; amountEl.value=''; whoEl.value=''; dateEl.value=todayISO(); addMsg.textContent=''; addMsg.className='small'; });
+
+    // ====== Filtro mese ======
+    monthEl.addEventListener('change', render);
+    btnClearFilter.addEventListener('click', () => { monthEl.value=''; render(); });
+
+    function render(){
+      let rows = cache.slice();
+      const m = monthEl.value; // YYYY-MM
+      if (m){
+        const [y, mm] = m.split('-').map(Number);
+        const start = new Date(y, mm-1, 1);
+        const end = new Date(y, mm, 1);
+        rows = rows.filter(r=>{ const d = r.date?.toDate ? r.date.toDate() : new Date(r.date); return d>=start && d<end; });
+      }
+      const sumAll = rows.reduce((a,r)=>a+(r.amountCents||0),0)/100;
+      const sumFab = rows.filter(r=>r.who==='Fabrizio').reduce((a,r)=>a+(r.amountCents||0),0)/100;
+      const sumCec = rows.filter(r=>r.who==='Cecilia').reduce((a,r)=>a+(r.amountCents||0),0)/100;
+      totAllEl.textContent = fmtEUR(sumAll); totFabEl.textContent = fmtEUR(sumFab); totCecEl.textContent = fmtEUR(sumCec);
+      listEl.innerHTML='';
+      if (!rows.length){ const empty=document.createElement('div'); empty.className='muted'; empty.textContent='Nessuna spesa trovata per il filtro scelto.'; listEl.appendChild(empty); return; }
+      for (const r of rows){
+        const d = r.date?.toDate ? r.date.toDate() : new Date(r.date);
+        const div=document.createElement('div'); div.className='item';
+        div.innerHTML = `<div><div class="who">${r.who} • <span class="desc">${escapeHTML(r.desc||'')}</span></div><div class="date">${d.toLocaleDateString('it-IT')}</div></div><div class="amount">${fmtEUR((r.amountCents||0)/100)}</div>`;
+        listEl.appendChild(div);
+      }
+    }
+
+    function escapeHTML(s){return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
+  </script>
+
+  <!-- Regole Firestore consigliate (limitate all'email virtuale admin@local) -->
+  <!--
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /expenses/{docId} {
+        allow read, write: if request.auth != null && request.auth.token.email == 'admin@local';
+      }
+    }
+  }
+  -->
+</body>
+</html>

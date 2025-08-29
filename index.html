@@ -193,74 +193,47 @@
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, orderBy, Timestamp, serverTimestamp, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    let __bootOk=false; 
-    window.addEventListener('error',(e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Errore script: '+(e.message||e); m.className='small error'; } });
-    window.addEventListener('unhandledrejection',(e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Errore: '+(e.reason?.message||e.reason||e); m.className='small error'; } }); if(m){ m.textContent='Errore script: '+(e.message||e); m.className='small error'; } });
+    let __bootOk=false;
+    // Error handlers visibili nella UI
+    window.addEventListener('error',(e)=>{
+      const m=document.getElementById('authMsg');
+      if(m){ m.textContent='Errore script: '+(e.message||e); m.className='small error'; }
+    });
+    window.addEventListener('unhandledrejection',(e)=>{
+      const m=document.getElementById('authMsg');
+      if(m){ m.textContent='Errore: '+(e.reason?.message||e.reason||e); m.className='small error'; }
+    });
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    enableIndexedDbPersistence(db).then(()=>{__bootOk=true}).catch(()=>{});
-
-    // Admin shortcut
-    const ADMIN_EMAIL='admin@local.com';
-    const ADMIN_PASS='adminadmin';
-
-    // Helpers
-    const fmtEUR = (n) => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
-    const todayISO = () => new Date().toISOString().slice(0,10);
-    const monthISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
-    const labelAccount = (a) => a==='banca1'?'Biper erediFrioni': a==='banca2'?'Biper Fabrizio&Ceci':'Contanti';
-
-    // DOM refs
-    const authCard=document.getElementById('authCard');
-    const appView=document.getElementById('app');
-    const usernameEl=document.getElementById('username') || document.getElementById('email');
-    const passEl=document.getElementById('password');
-    const togglePw=document.getElementById('togglePw');
-    const btnLogin=document.getElementById('btnLogin');
-    const btnLogout=document.getElementById('btnLogout');
-    const authMsg=document.getElementById('authMsg');
-
-    const descEl=document.getElementById('desc');
-    const amountEl=document.getElementById('amount');
-    const typeEl=document.getElementById('type');
-    const accountEl=document.getElementById('account');
-    const dateEl=document.getElementById('date');
-    const addMsg=document.getElementById('addMsg');
-    const btnAdd=document.getElementById('btnAdd');
-    const btnClear=document.getElementById('btnClear');
-
-    const monthEl=document.getElementById('month');
-    const fAccountEl=document.getElementById('fAccount');
-    const btnThisMonth=document.getElementById('btnThisMonth');
-    const btnLastMonth=document.getElementById('btnLastMonth');
-    const btnClearFilter=document.getElementById('btnClearFilter');
-    const btnExport=document.getElementById('btnExport');
-    const btnInitBalances=document.getElementById('btnInitBalances');
-
-    const listEl=document.getElementById('list');
-    const totSaldoEl=document.getElementById('totSaldo');
-    const totInEl=document.getElementById('totIn');
-    const totOutEl=document.getElementById('totOut');
-    const totCountEl=document.getElementById('totCount');
-    const initB1El=document.getElementById('initB1');
-    const initB2El=document.getElementById('initB2');
-    const initCashEl=document.getElementById('initCash');
-    const initTotalEl=document.getElementById('initTotal');
-    const balB1El=document.getElementById('balB1');
-    const balB2El=document.getElementById('balB2');
-    const balCashEl=document.getElementById('balCash');
-    const balTotalEl=document.getElementById('balTotal');
-
-    // Defaults
+    // === WIRING LOGIN SICURO ===
     function wireLogin(){
       try{
         if(btnLogin && !btnLogin.dataset.wired){
           btnLogin.addEventListener('click', onLogin);
           btnLogin.dataset.wired='1';
         }
-      }catch(_){/* noop */}
+        // fallback inline
+        window._doLogin = onLogin;
+      }catch(_){}
+    }
+
+    async function onLogin(){
+      try{
+        if(authMsg){ authMsg.textContent='Accesso in corso...'; authMsg.className='small muted'; }
+        let u=(usernameEl?.value||'').trim();
+        let p=(passEl?.value||'').trim();
+        const email = u.includes('@') ? u : ADMIN_EMAIL; if(!p) p=ADMIN_PASS;
+        try{
+          await signInWithEmailAndPassword(auth,email,p);
+          if(authMsg){ authMsg.textContent='Accesso riuscito'; authMsg.className='small ok'; }
+        }catch(e){
+          if(e?.code==='auth/user-not-found'){
+            await createUserWithEmailAndPassword(auth,email,p);
+            if(authMsg){ authMsg.textContent='Utente creato'; authMsg.className='small ok'; }
+          }else{
+            throw e;
+          }
+        }
+      }catch(e){ if(authMsg){ authMsg.textContent='Errore accesso: '+(e.message||e); authMsg.className='small error'; } }
     }
 
     function initUI(){
@@ -275,24 +248,7 @@
             togglePw.textContent = isPwd?'Nascondi':'Mostra';
           });
         }
-        // Enter per fare login
-        [usernameEl, passEl].forEach(el=>{
-          try{ el&&el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ onLogin(); }});}catch(_){}
-        });
-      }catch(e){
-        const m=document.getElementById('authMsg');
-        if(m){ m.textContent='Init UI error: '+(e.message||e); m.className='small error'; }
-      }
-    }
-        if(monthEl){ monthEl.value=monthISO(); }
-        wireLogin();
-        if(togglePw && passEl){
-          togglePw.addEventListener('click', ()=>{
-            const isPwd = passEl.type==='password';
-            passEl.type = isPwd?'text':'password';
-            togglePw.textContent = isPwd?'Nascondi':'Mostra';
-          });
-        }
+        [usernameEl, passEl].forEach(el=>{ try{ el&&el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ onLogin(); }});}catch(_){} });
       }catch(e){
         const m=document.getElementById('authMsg');
         if(m){ m.textContent='Init UI error: '+(e.message||e); m.className='small error'; }
@@ -301,6 +257,8 @@
 
     if(document.readyState==='loading'){
       document.addEventListener('DOMContentLoaded', initUI);
+    }else{
+      initUI();
     }else{
       initUI();
     } dateEl.max=todayISO(); monthEl.value=monthISO();

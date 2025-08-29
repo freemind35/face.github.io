@@ -69,7 +69,7 @@
         </div>
       </div>
       <div class="row" style="margin-top:10px">
-        <button class="primary" id="btnLogin">Entra</button>
+        <button class="primary" id="btnLogin" type="button" onclick="_doLogin && _doLogin()">Entra</button>
       </div>
       <div class="small muted" style="margin-top:8px">Credenziali consigliate: <b>admin@local.com / adminadmin</b></div>
       <div id="authMsg" class="small"></div>
@@ -193,7 +193,9 @@
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, orderBy, Timestamp, serverTimestamp, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    let __bootOk=false; window.addEventListener('error', (e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Errore script: '+(e.message||e); m.className='small error'; } });
+    let __bootOk=false; 
+    window.addEventListener('error',(e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Errore script: '+(e.message||e); m.className='small error'; } });
+    window.addEventListener('unhandledrejection',(e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Errore: '+(e.reason?.message||e.reason||e); m.className='small error'; } }); if(m){ m.textContent='Errore script: '+(e.message||e); m.className='small error'; } });
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -273,6 +275,24 @@
             togglePw.textContent = isPwd?'Nascondi':'Mostra';
           });
         }
+        // Enter per fare login
+        [usernameEl, passEl].forEach(el=>{
+          try{ el&&el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ onLogin(); }});}catch(_){}
+        });
+      }catch(e){
+        const m=document.getElementById('authMsg');
+        if(m){ m.textContent='Init UI error: '+(e.message||e); m.className='small error'; }
+      }
+    }
+        if(monthEl){ monthEl.value=monthISO(); }
+        wireLogin();
+        if(togglePw && passEl){
+          togglePw.addEventListener('click', ()=>{
+            const isPwd = passEl.type==='password';
+            passEl.type = isPwd?'text':'password';
+            togglePw.textContent = isPwd?'Nascondi':'Mostra';
+          });
+        }
       }catch(e){
         const m=document.getElementById('authMsg');
         if(m){ m.textContent='Init UI error: '+(e.message||e); m.className='small error'; }
@@ -289,10 +309,25 @@
     });
 
     async function onLogin(){
-      authMsg.textContent='Accesso in corso...'; authMsg.className='small muted';
-      let u=(usernameEl?.value||'').trim(); let p=(passEl?.value||'').trim();
-      const email = u.includes('@') ? u : ADMIN_EMAIL; if(!p) p=ADMIN_PASS;
-      try{ await signInWithEmailAndPassword(auth,email,p); authMsg.textContent='Accesso riuscito'; authMsg.className='small ok'; }
+      try{
+        if(authMsg){ authMsg.textContent='Accesso in corso...'; authMsg.className='small muted'; }
+        let u=(usernameEl?.value||'').trim(); let p=(passEl?.value||'').trim();
+        const email = u.includes('@') ? u : ADMIN_EMAIL; if(!p) p=ADMIN_PASS;
+        try{
+          await signInWithEmailAndPassword(auth,email,p);
+          if(authMsg){ authMsg.textContent='Accesso riuscito'; authMsg.className='small ok'; }
+        }catch(e){
+          if(e?.code==='auth/user-not-found'){
+            await createUserWithEmailAndPassword(auth,email,p);
+            if(authMsg){ authMsg.textContent='Utente creato'; authMsg.className='small ok'; }
+          }else{
+            throw e;
+          }
+        }
+      }catch(e){ if(authMsg){ authMsg.textContent='Errore accesso: '+(e.message||e); authMsg.className='small error'; } }
+    }
+    // esponi fallback globale per onclick inline
+    window._doLogin = onLogin;
       catch(e){ if(e?.code==='auth/user-not-found'){ try{ await createUserWithEmailAndPassword(auth,email,p); authMsg.textContent='Utente creato'; authMsg.className='small ok'; }catch(e2){ authMsg.textContent='Errore: '+(e2.message||e2); authMsg.className='small error'; } } else { authMsg.textContent='Errore accesso: '+(e.message||e); authMsg.className='small error'; } }
     }
 

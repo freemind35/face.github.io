@@ -189,15 +189,20 @@
     };
     const HOUSEHOLD_ID = "casa-domestica";
 
-    // Firebase init
+    // Firebase init (diagnostica attiva)
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, orderBy, Timestamp, serverTimestamp, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+    let __bootOk = false; let __bootErr = null;
+    // Handler errori globali per mostrare messaggi se qualcosa blocca lo script
+    window.addEventListener('error', (e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent = 'Errore script: '+ (e?.message||e); m.className='small error'; }});
+    window.addEventListener('unhandledrejection', (e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent = 'Errore (promessa non gestita): '+ (e?.reason?.message||e?.reason||e); m.className='small error'; }});
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    enableIndexedDbPersistence(db).catch(()=>{});
+    enableIndexedDbPersistence(db).then(()=>{ __bootOk=true; const m=document.getElementById('authMsg'); if(m && !m.textContent){ m.textContent='Pronto: database offline abilitato.'; m.className='small muted'; } }).catch((err)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Nota: offline non attivo ('+(err?.message||err)+')'; m.className='small muted'; }});
 
     // Admin login
     const ADMIN_USER = 'admin';
@@ -262,24 +267,26 @@
 
     // ===== Auth =====
     btnLogin.addEventListener('click', async () => {
-      authMsg.textContent = '';
+      authMsg.textContent = 'Accesso in corso...'; authMsg.className='small muted';
       let u = (usernameEl.value || '').trim();
       let p = (passEl.value || '').trim();
       const email = u.includes('@') ? u : ADMIN_EMAIL;
       if (!p) p = ADMIN_PASS;
       try {
         await signInWithEmailAndPassword(auth, email, p);
+        authMsg.textContent = 'Accesso riuscito'; authMsg.className='small ok';
       } catch (e) {
         const code = e && e.code;
         if ((code === 'auth/invalid-credential' || code==='auth/wrong-password') && email===ADMIN_EMAIL && p!==ADMIN_PASS){
-          try { await signInWithEmailAndPassword(auth, email, ADMIN_PASS); }
+          try { await signInWithEmailAndPassword(auth, email, ADMIN_PASS); authMsg.textContent='Accesso riuscito (fallback)'; authMsg.className='small ok'; }
           catch(e2){
             if (e2 && e2.code==='auth/user-not-found'){
-              try{ await createUserWithEmailAndPassword(auth, email, ADMIN_PASS); await signInWithEmailAndPassword(auth, email, ADMIN_PASS);}catch(e3){ authMsg.textContent = 'Errore creazione/accesso admin: '+(e3.message||e3); authMsg.className='small error'; }
+              try{ await createUserWithEmailAndPassword(auth, email, ADMIN_PASS); await signInWithEmailAndPassword(auth, email, ADMIN_PASS); authMsg.textContent='Utente creato e accesso effettuato'; authMsg.className='small ok';}
+              catch(e3){ authMsg.textContent = 'Errore creazione/accesso admin: '+(e3.message||e3); authMsg.className='small error'; }
             } else { authMsg.textContent = 'Errore accesso: '+(e2.message||e2); authMsg.className='small error'; }
           }
         } else if (e && e.code==='auth/user-not-found'){
-          try { await createUserWithEmailAndPassword(auth, email, p); await signInWithEmailAndPassword(auth, email, p);} catch(e4){ authMsg.textContent = 'Errore creazione/accesso: '+(e4.message||e4); authMsg.className='small error'; }
+          try { await createUserWithEmailAndPassword(auth, email, p); await signInWithEmailAndPassword(auth, email, p); authMsg.textContent='Utente creato e accesso effettuato'; authMsg.className='small ok'; } catch(e4){ authMsg.textContent = 'Errore creazione/accesso: '+(e4.message||e4); authMsg.className='small error'; }
         } else { authMsg.textContent = 'Errore accesso: '+(e.message||e); authMsg.className='small error'; }
       }
     });
@@ -287,8 +294,19 @@
     btnLogout.addEventListener('click', () => signOut(auth));
 
     onAuthStateChanged(auth, (user) => {
-      if (user) { userEmail.textContent = 'admin'; authCard.style.display='none'; appView.style.display='grid'; startListener(); startSettingsListener(); }
-      else { userEmail.textContent=''; appView.style.display='none'; authCard.style.display='block'; stopListener(); stopSettingsListener(); }
+      if (user) {
+        userEmail.textContent = 'admin';
+        authCard.style.display='none';
+        appView.style.display='grid';
+        startListener();
+        startSettingsListener();
+      } else {
+        userEmail.textContent='';
+        appView.style.display='none';
+        authCard.style.display='block';
+        stopListener();
+        stopSettingsListener();
+      }
     });
 
     // ===== Firestore listeners =====

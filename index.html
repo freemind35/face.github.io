@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Gestione Casa Fabrizio e Cecilia — Entrate & Uscite</title>
+  <title>Gestione Spese Fabrizio e Cecilia</title>
   <meta name="theme-color" content="#0ea5e9" />
   <style>
     :root{ --bg:#0b1220; --card:#111827; --muted:#6b7280; --text:#e5e7eb; --brand:#0ea5e9; --ok:#10b981; --danger:#ef4444; --shadow:0 10px 30px rgba(0,0,0,.35); --radius:20px; }
@@ -45,7 +45,7 @@
 <body>
   <header>
     <div class="bar wrap">
-      <div class="title">🏠 Gestione Casa</div>
+      <div class="title">💰 Gestione Spese Fabrizio e Cecilia</div>
       <span class="badge">Entrate & Uscite</span>
       <div class="right small" id="userEmail"></div>
     </div>
@@ -71,7 +71,7 @@
       <div class="row" style="margin-top:10px">
         <button class="primary" id="btnLogin">Entra</button>
       </div>
-      <div class="small muted" style="margin-top:8px">Credenziali consigliate: <b>admin@local.com / adminadmin</b> (puoi anche scrivere solo <b>admin</b> come utente).</div>
+      <div class="small muted" style="margin-top:8px">Credenziali consigliate: <b>admin@local.com / adminadmin</b></div>
       <div id="authMsg" class="small"></div>
     </section>
 
@@ -104,8 +104,8 @@
             <label>Conto</label>
             <select id="account">
               <option value="" disabled selected>Scegli conto</option>
-              <option value="banca1">Banca 1</option>
-              <option value="banca2">Banca 2</option>
+              <option value="banca1">Biper erediFrioni</option>
+              <option value="banca2">Biper Fabrizio&Ceci</option>
               <option value="contanti">Contanti</option>
             </select>
           </div>
@@ -124,7 +124,7 @@
         </div>
       </section>
 
-      <!-- Filtri, totali, lista -->
+      <!-- Totali e saldi -->
       <section class="card">
         <div class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap">
           <div style="flex:1; min-width:200px">
@@ -135,8 +135,8 @@
             <label>Conto</label>
             <select id="fAccount">
               <option value="">Tutti i conti</option>
-              <option value="banca1">Banca 1</option>
-              <option value="banca2">Banca 2</option>
+              <option value="banca1">Biper erediFrioni</option>
+              <option value="banca2">Biper Fabrizio&Ceci</option>
               <option value="contanti">Contanti</option>
             </select>
           </div>
@@ -157,10 +157,17 @@
         </div>
 
         <div class="totals" style="margin-top:8px">
-          <div class="tot-card"><h4>Saldo Banca 1</h4><div id="balB1">€ 0,00</div></div>
-          <div class="tot-card"><h4>Saldo Banca 2</h4><div id="balB2">€ 0,00</div></div>
-          <div class="tot-card"><h4>Saldo Contanti</h4><div id="balCash">€ 0,00</div></div>
-          <div class="tot-card"><h4>Saldo Totale</h4><div id="balTotal">€ 0,00</div></div>
+          <div class="tot-card"><h4>Saldo Iniziale Biper erediFrioni</h4><div id="initB1">€ 0,00</div></div>
+          <div class="tot-card"><h4>Saldo Iniziale Biper Fabrizio&Ceci</h4><div id="initB2">€ 0,00</div></div>
+          <div class="tot-card"><h4>Saldo Iniziale Contanti</h4><div id="initCash">€ 0,00</div></div>
+          <div class="tot-card"><h4>Saldo Totale Iniziale</h4><div id="initTotal">€ 0,00</div></div>
+        </div>
+
+        <div class="totals" style="margin-top:8px">
+          <div class="tot-card"><h4>Saldo Attuale Biper erediFrioni</h4><div id="balB1">€ 0,00</div></div>
+          <div class="tot-card"><h4>Saldo Attuale Biper Fabrizio&Ceci</h4><div id="balB2">€ 0,00</div></div>
+          <div class="tot-card"><h4>Saldo Attuale Contanti</h4><div id="balCash">€ 0,00</div></div>
+          <div class="tot-card"><h4>Saldo Totale Attuale</h4><div id="balTotal">€ 0,00</div></div>
         </div>
 
         <div class="list" id="list"></div>
@@ -168,208 +175,6 @@
     </section>
   </main>
 
-  <script type="module">
-    // === CONFIG FIREBASE ===
-    const firebaseConfig = {
-      apiKey: "AIzaSyCGndyuPPfapUi-jhesOM5AXWNgDjSY70U",
-      authDomain: "spese-fabrizio-cecilia.firebaseapp.com",
-      projectId: "spese-fabrizio-cecilia",
-      storageBucket: "spese-fabrizio-cecilia.appspot.com",
-      messagingSenderId: "178663591666",
-      appId: "1:178663591666:web:e8490c54ff39c6f536ca6b6",
-      measurementId: "G-1XCPCNKJEQ"
-    };
-    const HOUSEHOLD_ID = "casa-domestica"; // nuovo scope logico
-
-    // Firebase init
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, orderBy, Timestamp, serverTimestamp, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    enableIndexedDbPersistence(db).catch(()=>{});
-
-    // Admin login
-    const ADMIN_USER = 'admin';
-    const ADMIN_PASS = 'adminadmin';
-    const ADMIN_EMAIL = 'admin@local.com';
-
-    // Helpers
-    const fmtEUR = (n) => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
-    const todayISO = () => new Date().toISOString().slice(0,10);
-    const monthISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
-
-    // DOM refs
-    const authCard = document.getElementById('authCard');
-    const appView = document.getElementById('app');
-    const userEmail = document.getElementById('userEmail');
-    const usernameEl = document.getElementById('username');
-    const passEl = document.getElementById('password');
-    const togglePw = document.getElementById('togglePw');
-    const btnLogin = document.getElementById('btnLogin');
-    const btnLogout = document.getElementById('btnLogout');
-    const authMsg = document.getElementById('authMsg');
-
-    const descEl = document.getElementById('desc');
-    const amountEl = document.getElementById('amount');
-    const typeEl = document.getElementById('type');
-    const accountEl = document.getElementById('account');
-    const dateEl = document.getElementById('date');
-    const addMsg = document.getElementById('addMsg');
-    const btnAdd = document.getElementById('btnAdd');
-    const btnClear = document.getElementById('btnClear');
-
-    const monthEl = document.getElementById('month');
-    const fAccountEl = document.getElementById('fAccount');
-    const btnThisMonth = document.getElementById('btnThisMonth');
-    const btnLastMonth = document.getElementById('btnLastMonth');
-    const btnClearFilter = document.getElementById('btnClearFilter');
-    const btnExport = document.getElementById('btnExport');
-
-    const listEl = document.getElementById('list');
-    const totSaldoEl = document.getElementById('totSaldo');
-    const totInEl = document.getElementById('totIn');
-    const totOutEl = document.getElementById('totOut');
-    const totCountEl = document.getElementById('totCount');
-    const balB1El = document.getElementById('balB1');
-    const balB2El = document.getElementById('balB2');
-    const balCashEl = document.getElementById('balCash');
-    const balTotalEl = document.getElementById('balTotal');
-
-    // Defaults
-    dateEl.value = todayISO();
-    dateEl.max = todayISO();
-    monthEl.value = monthISO();
-
-    // Toggle mostra/nascondi pw
-    togglePw?.addEventListener('click', ()=>{ const isPwd = passEl.type==='password'; passEl.type = isPwd?'text':'password'; togglePw.textContent = isPwd?'Nascondi':'Mostra'; });
-
-    // Auth
-    btnLogin.addEventListener('click', async () => {
-      authMsg.textContent = '';
-      let u = (usernameEl.value || '').trim();
-      let p = (passEl.value || '').trim();
-      const email = u.includes('@') ? u : ADMIN_EMAIL;
-      if (!p) p = ADMIN_PASS;
-      try {
-        await signInWithEmailAndPassword(auth, email, p);
-      } catch (e) {
-        const code = e && e.code;
-        if ((code === 'auth/invalid-credential' || code==='auth/wrong-password') && email===ADMIN_EMAIL && p!==ADMIN_PASS){
-          try { await signInWithEmailAndPassword(auth, email, ADMIN_PASS); } catch(e2){ if (e2 && e2.code==='auth/user-not-found'){ try{ await createUserWithEmailAndPassword(auth, email, ADMIN_PASS); await signInWithEmailAndPassword(auth, email, ADMIN_PASS);}catch(e3){ authMsg.textContent = 'Errore creazione/accesso admin: '+(e3.message||e3); authMsg.className='small error'; } } else { authMsg.textContent = 'Errore accesso: '+(e2.message||e2); authMsg.className='small error'; } }
-        } else if (e && e.code==='auth/user-not-found'){
-          try { await createUserWithEmailAndPassword(auth, email, p); await signInWithEmailAndPassword(auth, email, p);} catch(e4){ authMsg.textContent = 'Errore creazione/accesso: '+(e4.message||e4); authMsg.className='small error'; }
-        } else { authMsg.textContent = 'Errore accesso: '+(e.message||e); authMsg.className='small error'; }
-      }
-    });
-
-    btnLogout.addEventListener('click', () => signOut(auth));
-
-    onAuthStateChanged(auth, (user) => {
-      if (user) { userEmail.textContent = 'admin'; authCard.style.display='none'; appView.style.display='grid'; startListener(); }
-      else { userEmail.textContent=''; appView.style.display='none'; authCard.style.display='block'; stopListener(); }
-    });
-
-    // Firestore live query (nuova collezione: transactions)
-    let unsub=null; let cache=[]; let filteredCache=[];
-    function startListener(){ if (unsub) return; const qy = query(collection(db,'transactions'), where('householdId','==',HOUSEHOLD_ID), orderBy('date','desc')); unsub = onSnapshot(qy,(snap)=>{ cache = snap.docs.map(d=>({id:d.id,...d.data()})); render(); }); }
-    function stopListener(){ if (unsub){ unsub(); unsub=null; } }
-
-    // Aggiungi movimento
-    btnAdd.addEventListener('click', async ()=>{
-      addMsg.textContent=''; addMsg.className='small';
-      try{
-        const desc=(descEl.value||'').trim();
-        let amtStr=(amountEl.value||'').trim().replace(',','.');
-        const amount=Number(amtStr);
-        const type=typeEl.value; // in|out
-        const account=accountEl.value; // banca1|banca2|contanti
-        const dateStr=dateEl.value;
-        if(!desc||!dateStr||!isFinite(amount)||amount<=0||!type||!account){ addMsg.textContent='Compila descrizione, importo (>0), tipo, conto e data.'; addMsg.className='small error'; return; }
-        const date = new Date(dateStr+'T00:00:00');
-        const docData={ householdId:HOUSEHOLD_ID, desc, amountCents:Math.round(amount*100), type, account, date:Timestamp.fromDate(date), createdAt:serverTimestamp(), createdBy:(auth.currentUser&&auth.currentUser.uid)||'admin' };
-        await addDoc(collection(db,'transactions'), docData);
-        addMsg.textContent='Movimento aggiunto ✅'; addMsg.className='small ok';
-        amountEl.value=''; descEl.value=''; typeEl.value=''; accountEl.value=''; dateEl.value=todayISO();
-      }catch(e){ addMsg.textContent='Errore salvataggio: '+(e.message||e); addMsg.className='small danger'; }
-    });
-
-    btnClear.addEventListener('click', ()=>{ descEl.value=''; amountEl.value=''; typeEl.value=''; accountEl.value=''; dateEl.value=todayISO(); addMsg.textContent=''; addMsg.className='small'; });
-
-    // Filtri
-    monthEl.addEventListener('change', render);
-    fAccountEl.addEventListener('change', render);
-    btnClearFilter.addEventListener('click', ()=>{ monthEl.value=''; fAccountEl.value=''; render(); });
-    btnThisMonth.addEventListener('click', ()=>{ monthEl.value=monthISO(); render(); });
-    btnLastMonth.addEventListener('click', ()=>{ const d=new Date(); const y=d.getFullYear(); const m=d.getMonth(); const y2=m===0?y-1:y; const m2=m===0?12:m; monthEl.value=`${y2}-${String(m2).padStart(2,'0')}`; render(); });
-    btnExport.addEventListener('click', exportCSV);
-
-    function computeSaldo(rows){
-      let totIn=0, totOut=0, b1=0, b2=0, cash=0;
-      for(const r of rows){ const v=(r.amountCents||0)/100; const sign = r.type==='in'?1:-1; if(r.type==='in') totIn+=v; else totOut+=v; if(r.account==='banca1') b1+=sign*v; else if(r.account==='banca2') b2+=sign*v; else if(r.account==='contanti') cash+=sign*v; }
-      return { totIn, totOut, saldo: totIn - totOut, b1, b2, cash, total: b1+b2+cash };
-    }
-
-    function render(){
-      let rows=cache.slice();
-      const m=monthEl.value; const acc=fAccountEl.value;
-      if(m){ const [y,mm]=m.split('-').map(Number); const start=new Date(y,mm-1,1); const end=new Date(y,mm,1); rows = rows.filter(r=>{ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); return d>=start && d<end; }); }
-      if(acc){ rows = rows.filter(r=> r.account===acc); }
-      filteredCache = rows;
-
-      const k=computeSaldo(rows);
-      totInEl.textContent=fmtEUR(k.totIn); totOutEl.textContent=fmtEUR(k.totOut); totSaldoEl.textContent=fmtEUR(k.saldo); totCountEl.textContent=String(rows.length);
-      balB1El.textContent=fmtEUR(k.b1); balB2El.textContent=fmtEUR(k.b2); balCashEl.textContent=fmtEUR(k.cash); balTotalEl.textContent=fmtEUR(k.total);
-
-      listEl.innerHTML='';
-      if(!rows.length){ const empty=document.createElement('div'); empty.className='muted'; empty.textContent='Nessun movimento per il filtro scelto.'; listEl.appendChild(empty); return; }
-      for(const r of rows){ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); const sign = r.type==='in'?'+':'−'; const color = r.type==='in'?'pos':'neg'; const div=document.createElement('div'); div.className='item'; div.innerHTML = `
-          <div style="flex:1">
-            <div class="desc">${escapeHTML(r.desc||'')}</div>
-            <div class="meta">${d.toLocaleDateString('it-IT')} • ${r.type==='in'?'Entrata':'Uscita'} • ${labelAccount(r.account)}</div>
-          </div>
-          <div class="row" style="gap:6px; max-width:300px">
-            <div class="amount ${color}" style="flex:0 0 auto">${sign} ${fmtEUR((r.amountCents||0)/100)}</div>
-            <button class="ghost" data-act="edit" data-id="${r.id}" style="flex:0 0 84px">Modifica</button>
-            <button class="ghost" data-act="del" data-id="${r.id}" style="flex:0 0 72px">Elimina</button>
-          </div>`;
-        listEl.appendChild(div); }
-      listEl.querySelectorAll('button[data-act]')?.forEach(b=> b.addEventListener('click', onRowAction));
-    }
-
-    function labelAccount(a){ return a==='banca1'?'Banca 1': a==='banca2'?'Banca 2':'Contanti'; }
-    function escapeHTML(s){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
-
-    async function onRowAction(e){
-      const id=e.currentTarget.getAttribute('data-id');
-      const act=e.currentTarget.getAttribute('data-act');
-      const row=cache.find(r=>r.id===id); if(!row) return;
-      if(act==='del'){ const yes=confirm('Eliminare questo movimento?'); if(!yes) return; try{ await deleteDoc(doc(db,'transactions',id)); }catch(err){ alert('Errore eliminazione: '+(err.message||err)); } return; }
-      if(act==='edit'){
-        const curDate = (row.date?.toDate? row.date.toDate(): new Date(row.date));
-        const dsc = prompt('Descrizione:', row.desc||''); if(dsc===null) return;
-        const amt = prompt('Importo (€):', ((row.amountCents||0)/100).toString().replace('.',',')); if(amt===null) return; const amount=Number(String(amt).replace(',','.'));
-        const typ = prompt('Tipo (in/out):', row.type||'in'); if(typ===null) return;
-        const acc = prompt('Conto (banca1/banca2/contanti):', row.account||'banca1'); if(acc===null) return;
-        const dstr = prompt('Data (YYYY-MM-DD):', curDate.toISOString().slice(0,10)); if(dstr===null) return;
-        if(!dsc.trim() || !isFinite(amount) || amount<=0 || !['in','out'].includes(typ) || !['banca1','banca2','contanti'].includes(acc)){ alert('Valori non validi.'); return; }
-        try{ await updateDoc(doc(db,'transactions',id), { desc:dsc.trim(), amountCents:Math.round(amount*100), type:typ, account:acc, date:Timestamp.fromDate(new Date(dstr+'T00:00:00')) }); }catch(err){ alert('Errore modifica: '+(err.message||err)); }
-      }
-    }
-
-    function exportCSV(){ if(!filteredCache.length){ alert('Niente da esportare per il filtro corrente.'); return; } const rows=[['data','tipo','conto','descrizione','importo_eur']]; for(const r of filteredCache){ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); rows.push([ d.toISOString().slice(0,10), r.type, r.account, (r.desc||'').replaceAll('\n',' '), ((r.amountCents||0)/100).toFixed(2) ]); } const csv = rows.map(a=>a.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`movimenti_${monthEl.value||'tutti'}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
-  </script>
-
-  <!-- Regole Firestore (accesso aperto - DA USARE SOLO SE DESIDERI APERTO) -->
-  <!--
-  rules_version = '2';
-  service cloud.firestore {
-    match /databases/{database}/documents {
-      match /transactions/{docId} { allow read, write: if true; }
-    }
-  }
-  -->
+  <!-- Nota: la logica per gestire i saldi iniziali (anche negativi) andrà aggiunta nello script JS -->
 </body>
 </html>

@@ -312,9 +312,74 @@
 
     function computeAllBalances(){ let b1=0,b2=0,cash=0; for(const r of cache){ const v=(r.amountCents||0)/100*(r.type==='in'?1:-1); if(r.account==='banca1') b1+=v; else if(r.account==='banca2') b2+=v; else cash+=v; } return { b1: b1+initB1Cents/100, b2: b2+initB2Cents/100, cash: cash+initCashCents/100 } }
 
+    function toDateAny(x){
+      try{
+        if(x?.toDate) return x.toDate();            // Firestore Timestamp
+        if(x instanceof Date) return x;             // Date
+        if(typeof x === 'string') return new Date(x);// ISO/string
+        if(x?.seconds) return new Date(x.seconds*1000); // {seconds,nanos}
+      }catch(e){}
+      return new Date();
+    }
+
     function render(){
-      let rows=cache.slice(); const m=monthEl.value; const acc=fAccountEl.value;
-      if(m){ const [y,mm]=m.split('-').map(Number); const start=new Date(y,mm-1,1); const end=new Date(y,mm,1); rows=rows.filter(r=>{ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); return d>=start && d<end; }); }
+      let rows = cache.slice();
+      const m = monthEl.value;
+      const acc = fAccountEl.value;
+
+      // Filtro mese robusto su qualsiasi formato di data
+      if(m){
+        const [y,mm] = m.split('-').map(Number);
+        const start = new Date(y, mm-1, 1);
+        const end   = new Date(y, mm,   1);
+        rows = rows.filter(r=>{ const d = toDateAny(r.date); return d>=start && d<end; });
+      }
+      if(acc) rows = rows.filter(r=>r.account===acc);
+      filteredCache = rows;
+
+      const p = computePeriod(rows);
+      totInEl.textContent  = fmtEUR(p.totIn);
+      totOutEl.textContent = fmtEUR(p.totOut);
+      totSaldoEl.textContent = fmtEUR(p.saldo);
+      totCountEl.textContent = String(rows.length);
+
+      initB1El.textContent = fmtEUR(initB1Cents/100);
+      initB2El.textContent = fmtEUR(initB2Cents/100);
+      initCashEl.textContent = fmtEUR(initCashCents/100);
+      initTotalEl.textContent = fmtEUR((initB1Cents+initB2Cents+initCashCents)/100);
+
+      const all = computeAllBalances();
+      balB1El.textContent = fmtEUR(all.b1);
+      balB2El.textContent = fmtEUR(all.b2);
+      balCashEl.textContent = fmtEUR(all.cash);
+      balTotalEl.textContent = fmtEUR(all.b1+all.b2+all.cash);
+
+      listEl.innerHTML='';
+      if(!rows.length){
+        const empty=document.createElement('div'); empty.className='muted';
+        empty.textContent='Nessun movimento per il filtro scelto.'; listEl.appendChild(empty); return;
+      }
+
+      for(const r of rows){
+        const d = toDateAny(r.date);
+        const sign  = r.type==='in'?'+':'−';
+        const color = r.type==='in'?'pos':'neg';
+        const div=document.createElement('div');
+        div.className='item';
+        div.innerHTML=`
+          <div style="flex:1">
+            <div class="desc">${escapeHTML(r.desc||'')}</div>
+            <div class="meta">${d.toLocaleDateString('it-IT')} • ${r.type==='in'?'Entrata':'Uscita'} • ${labelAccount(r.account)}</div>
+          </div>
+          <div class="row" style="gap:6px; max-width:300px">
+            <div class="amount ${color}" style="flex:0 0 auto">${sign} ${fmtEUR((r.amountCents||0)/100)}</div>
+            <button class="ghost" data-act="edit" data-id="${r.id}" style="flex:0 0 84px">Modifica</button>
+            <button class="ghost" data-act="del" data-id="${r.id}" style="flex:0 0 72px">Elimina</button>
+          </div>`;
+        listEl.appendChild(div);
+      }
+      listEl.querySelectorAll('button[data-act]')?.forEach(b=>b.addEventListener('click',onRowAction));
+    }); }
       if(acc) rows=rows.filter(r=>r.account===acc);
       filteredCache=rows;
 

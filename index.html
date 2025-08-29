@@ -176,227 +176,266 @@
   </main>
 
   <script type="module">
-    // === CONFIG FIREBASE ===
-    const firebaseConfig = {
-      apiKey: "AIzaSyCGndyuPPfapUi-jhesOM5AXWNgDjSY70U",
-      authDomain: "spese-fabrizio-cecilia.firebaseapp.com",
-      projectId: "spese-fabrizio-cecilia",
-      storageBucket: "spese-fabrizio-cecilia.appspot.com",
-      messagingSenderId: "178663591666",
-      appId: "1:178663591666:web:e8490c54ff39c6f536ca6b6",
-      measurementId: "G-1XCPCNKJEQ"
-    };
-    const HOUSEHOLD_ID = "casa-domestica"; // id logico del gruppo
+   <!-- Firebase compat (niente type="module") -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-    // Firebase init
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, orderBy, Timestamp, serverTimestamp, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<script>
+  // === CONFIG ===
+  const firebaseConfig = {
+    apiKey: "AIzaSyCGndyuPPfapUi-jhesOM5AXWNgDjSY70U",
+    authDomain: "spese-fabrizio-cecilia.firebaseapp.com",
+    projectId: "spese-fabrizio-cecilia",
+    storageBucket: "spese-fabrizio-cecilia.appspot.com",
+    messagingSenderId: "178663591666",
+    appId: "1:178663591666:web:e8490c54ff39c6f536ca6b6",
+    measurementId: "G-1XCPCNKJEQ"
+  };
+  const HOUSEHOLD_ID = "casa-domestica";
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    enableIndexedDbPersistence(db).catch(()=>{});
+  // Init
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+  db.enablePersistence().catch(()=>{ /* ok se non disponibile */ });
 
-    // Admin shortcut
-    const ADMIN_EMAIL='admin@local.com';
-    const ADMIN_PASS='adminadmin';
+  // Helpers
+  const fmtEUR = n => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
+  const todayISO = () => new Date().toISOString().slice(0,10);
+  const monthISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+  const labelAccount = a => a==='banca1'?'Biper erediFrioni':a==='banca2'?'Biper Fabrizio&Ceci':'Contanti';
+  const $ = sel => document.querySelector(sel);
 
-    // Helpers
-    const fmtEUR = (n) => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
-    const todayISO = () => new Date().toISOString().slice(0,10);
-    const monthISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
-    const labelAccount = (a) => a==='banca1'?'Biper erediFrioni': a==='banca2'?'Biper Fabrizio&Ceci':'Contanti';
+  // DOM
+  const authCard = $('#authCard');
+  const appView  = $('#app');
+  const usernameEl = $('#username') || $('#email');
+  const passEl   = $('#password');
+  const togglePw = $('#togglePw');
+  const btnLogin = $('#btnLogin');
+  const btnLogout= $('#btnLogout');
+  const authMsg  = $('#authMsg');
 
-    // DOM refs
-    const authCard=document.getElementById('authCard');
-    const appView=document.getElementById('app');
-    const usernameEl=document.getElementById('username') || document.getElementById('email');
-    const passEl=document.getElementById('password');
-    const togglePw=document.getElementById('togglePw');
-    const btnLogin=document.getElementById('btnLogin');
-    const btnLogout=document.getElementById('btnLogout');
-    const authMsg=document.getElementById('authMsg');
+  const descEl = $('#desc'); const amountEl = $('#amount'); const typeEl = $('#type');
+  const accountEl = $('#account'); const dateEl = $('#date'); const addMsg = $('#addMsg');
+  const btnAdd = $('#btnAdd'); const btnClear = $('#btnClear');
 
-    const descEl=document.getElementById('desc');
-    const amountEl=document.getElementById('amount');
-    const typeEl=document.getElementById('type');
-    const accountEl=document.getElementById('account');
-    const dateEl=document.getElementById('date');
-    const addMsg=document.getElementById('addMsg');
-    const btnAdd=document.getElementById('btnAdd');
-    const btnClear=document.getElementById('btnClear');
+  const monthEl = $('#month'); const fAccountEl = $('#fAccount');
+  const btnThisMonth = $('#btnThisMonth'); const btnLastMonth = $('#btnLastMonth'); const btnClearFilter = $('#btnClearFilter');
+  const btnExport = $('#btnExport'); const btnInitBalances = $('#btnInitBalances');
 
-    const monthEl=document.getElementById('month');
-    const fAccountEl=document.getElementById('fAccount');
-    const btnThisMonth=document.getElementById('btnThisMonth');
-    const btnLastMonth=document.getElementById('btnLastMonth');
-    const btnClearFilter=document.getElementById('btnClearFilter');
-    const btnExport=document.getElementById('btnExport');
-    const btnInitBalances=document.getElementById('btnInitBalances');
+  const listEl = $('#list');
+  const totSaldoEl = $('#totSaldo'); const totInEl = $('#totIn'); const totOutEl = $('#totOut'); const totCountEl = $('#totCount');
+  const initB1El=$('#initB1'); const initB2El=$('#initB2'); const initCashEl=$('#initCash'); const initTotalEl=$('#initTotal');
+  const balB1El=$('#balB1'); const balB2El=$('#balB2'); const balCashEl=$('#balCash'); const balTotalEl=$('#balTotal');
 
-    const listEl=document.getElementById('list');
-    const totSaldoEl=document.getElementById('totSaldo');
-    const totInEl=document.getElementById('totIn');
-    const totOutEl=document.getElementById('totOut');
-    const totCountEl=document.getElementById('totCount');
-    const initB1El=document.getElementById('initB1');
-    const initB2El=document.getElementById('initB2');
-    const initCashEl=document.getElementById('initCash');
-    const initTotalEl=document.getElementById('initTotal');
-    const balB1El=document.getElementById('balB1');
-    const balB2El=document.getElementById('balB2');
-    const balCashEl=document.getElementById('balCash');
-    const balTotalEl=document.getElementById('balTotal');
+  const ADMIN_EMAIL='admin@local.com';
+  const ADMIN_PASS ='adminadmin';
 
-    // ==== ERRORI VISIBILI ====
-    window.addEventListener('error',(e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Errore script: '+(e.message||e); m.className='small error'; } });
-    window.addEventListener('unhandledrejection',(e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Errore: '+(e.reason?.message||e.reason||e); m.className='small error'; } });
-
-    // ==== LOGIN ====
-    async function onLogin(){
-      try{
-        if(authMsg){ authMsg.textContent='Accesso in corso...'; authMsg.className='small muted'; }
-        let u=(usernameEl?.value||'').trim(); let p=(passEl?.value||'').trim();
-        const email = u.includes('@') ? u : ADMIN_EMAIL; if(!p) p=ADMIN_PASS;
-        try{
-          await signInWithEmailAndPassword(auth,email,p);
-          if(authMsg){ authMsg.textContent='Accesso riuscito'; authMsg.className='small ok'; }
-        }catch(e){
-          if(e?.code==='auth/user-not-found'){
-            await createUserWithEmailAndPassword(auth,email,p);
-            if(authMsg){ authMsg.textContent='Utente creato'; authMsg.className='small ok'; }
-          }else{
-            throw e;
-          }
-        }
-      }catch(e){ if(authMsg){ authMsg.textContent='Errore accesso: '+(e.message||e); authMsg.className='small error'; } }
-    }
-    // fallback per onclick inline
-    window._doLogin = onLogin;
-
-    function wireLogin(){
-      if(btnLogin && !btnLogin.dataset.wired){ btnLogin.addEventListener('click', onLogin); btnLogin.dataset.wired='1'; }
-    }
-
-    function initUI(){
-      try{
-        if(dateEl){ dateEl.value=todayISO(); dateEl.max=todayISO(); }
-        if(monthEl){ monthEl.value=monthISO(); }
-        wireLogin();
-        if(togglePw && passEl){
-          togglePw.addEventListener('click', ()=>{ const isPwd=passEl.type==='password'; passEl.type=isPwd?'text':'password'; togglePw.textContent=isPwd?'Nascondi':'Mostra'; });
-        }
-        [usernameEl, passEl].forEach(el=>{ try{ el&&el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ onLogin(); }});}catch(_){} });
-      }catch(e){ const m=document.getElementById('authMsg'); if(m){ m.textContent='Init UI error: '+(e.message||e); m.className='small error'; } }
-    }
-
-    if(document.readyState==='loading'){
-      document.addEventListener('DOMContentLoaded', initUI);
-    }else{
-      initUI();
-    }
-
-    // Stato auth
-    onAuthStateChanged(auth,(user)=>{
-      if(user){ authCard.style.display='none'; appView.style.display='block'; startListener(); startSettingsListener(); }
-      else { appView.style.display='none'; authCard.style.display='block'; stopListener(); stopSettingsListener(); }
+  document.addEventListener('DOMContentLoaded', ()=>{
+    if(dateEl){ dateEl.value=todayISO(); dateEl.max=todayISO(); }
+    if(monthEl) monthEl.value = monthISO();
+    togglePw && togglePw.addEventListener('click', ()=>{
+      const isPwd = passEl.type==='password'; passEl.type=isPwd?'text':'password';
+      togglePw.textContent = isPwd ? 'Nascondi' : 'Mostra';
     });
+    btnLogin && btnLogin.addEventListener('click', onLogin);
+  });
 
-    // Firestore listeners
-    let unsub=null; let cache=[]; let filteredCache=[];
-    function startListener(){ if(unsub) return; const qy=query(collection(db,'transactions'), where('householdId','==',HOUSEHOLD_ID), orderBy('date','desc')); unsub=onSnapshot(qy,(snap)=>{ cache=snap.docs.map(d=>({id:d.id,...d.data()})); render(); }); }
-    function stopListener(){ if(unsub){ unsub(); unsub=null; } }
-
-    let unsubSettings=null; let initB1Cents=0, initB2Cents=0, initCashCents=0;
-    function startSettingsListener(){ if(unsubSettings) return; const ref=doc(db,'settings',HOUSEHOLD_ID); unsubSettings=onSnapshot(ref,(snap)=>{ const d=snap.data()||{}; initB1Cents=d.initB1Cents||0; initB2Cents=d.initB2Cents||0; initCashCents=d.initCashCents||0; render(); }); }
-    function stopSettingsListener(){ if(unsubSettings){ unsubSettings(); unsubSettings=null; } }
-
-    // Add movimento
-    btnAdd.addEventListener('click', async ()=>{
-      addMsg.textContent=''; addMsg.className='small';
-      try{
-        const desc=(descEl.value||'').trim();
-        const amount=Number((amountEl.value||'').replace(',','.'));
-        const type=typeEl.value; const account=accountEl.value; const dateStr=dateEl.value;
-        if(!desc||!dateStr||!isFinite(amount)||amount<=0||!type||!account){ addMsg.textContent='Compila descrizione, importo (>0), tipo, conto e data.'; addMsg.className='small error'; return; }
-        const data={ householdId:HOUSEHOLD_ID, desc, amountCents:Math.round(amount*100), type, account, date:Timestamp.fromDate(new Date(dateStr+'T00:00:00')), createdAt:serverTimestamp() };
-        await addDoc(collection(db,'transactions'), data);
-        addMsg.textContent='Movimento aggiunto ✅'; addMsg.className='small ok';
-        amountEl.value=''; descEl.value=''; typeEl.value=''; accountEl.value=''; dateEl.value=todayISO();
-      }catch(e){ addMsg.textContent='Errore salvataggio: '+(e.message||e); addMsg.className='small error'; }
-    });
-
-    btnClear.addEventListener('click', ()=>{ descEl.value=''; amountEl.value=''; typeEl.value=''; accountEl.value=''; dateEl.value=todayISO(); addMsg.textContent=''; addMsg.className='small'; });
-
-    // Filtri & azioni
-    monthEl.addEventListener('change', render);
-    fAccountEl.addEventListener('change', render);
-    btnClearFilter.addEventListener('click', ()=>{ monthEl.value=''; fAccountEl.value=''; render(); });
-    btnThisMonth.addEventListener('click', ()=>{ monthEl.value=monthISO(); render(); });
-    btnLastMonth.addEventListener('click', ()=>{ const d=new Date(); const y=d.getFullYear(); const m=d.getMonth(); const y2=m===0?y-1:y; const m2=m===0?12:m; monthEl.value=`${y2}-${String(m2).padStart(2,'0')}`; render(); });
-    btnExport.addEventListener('click', exportCSV);
-    document.getElementById('btnLogout').addEventListener('click', ()=>signOut(auth));
-    btnInitBalances.addEventListener('click', setInitialBalances);
-
-    function computePeriod(rows){ let totIn=0, totOut=0; for(const r of rows){ const v=(r.amountCents||0)/100; if(r.type==='in') totIn+=v; else totOut+=v; } return { totIn, totOut, saldo: totIn - totOut }; }
-
-    function computeAllBalances(){ let b1=0,b2=0,cash=0; for(const r of cache){ const v=(r.amountCents||0)/100*(r.type==='in'?1:-1); if(r.account==='banca1') b1+=v; else if(r.account==='banca2') b2+=v; else cash+=v; } return { b1: b1+initB1Cents/100, b2: b2+initB2Cents/100, cash: cash+initCashCents/100 } }
-
-    function render(){
-      let rows=cache.slice(); const m=monthEl.value; const acc=fAccountEl.value;
-      if(m){ const [y,mm]=m.split('-').map(Number); const start=new Date(y,mm-1,1); const end=new Date(y,mm,1); rows=rows.filter(r=>{ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); return d>=start && d<end; }); }
-      if(acc) rows=rows.filter(r=>r.account===acc);
-      filteredCache=rows;
-
-      const p=computePeriod(rows); totInEl.textContent=fmtEUR(p.totIn); totOutEl.textContent=fmtEUR(p.totOut); totSaldoEl.textContent=fmtEUR(p.saldo); totCountEl.textContent=String(rows.length);
-      initB1El.textContent=fmtEUR(initB1Cents/100); initB2El.textContent=fmtEUR(initB2Cents/100); initCashEl.textContent=fmtEUR(initCashCents/100); initTotalEl.textContent=fmtEUR((initB1Cents+initB2Cents+initCashCents)/100);
-      const all=computeAllBalances(); balB1El.textContent=fmtEUR(all.b1); balB2El.textContent=fmtEUR(all.b2); balCashEl.textContent=fmtEUR(all.cash); balTotalEl.textContent=fmtEUR(all.b1+all.b2+all.cash);
-
-      listEl.innerHTML=''; if(!rows.length){ const empty=document.createElement('div'); empty.className='muted'; empty.textContent='Nessun movimento per il filtro scelto.'; listEl.appendChild(empty); return; }
-      for(const r of rows){ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); const sign=r.type==='in'?'+':'−'; const color=r.type==='in'?'pos':'neg'; const div=document.createElement('div'); div.className='item'; div.innerHTML=`
-          <div style="flex:1">
-            <div class="desc">${escapeHTML(r.desc||'')}</div>
-            <div class="meta">${d.toLocaleDateString('it-IT')} • ${r.type==='in'?'Entrata':'Uscita'} • ${labelAccount(r.account)}</div>
-          </div>
-          <div class="row" style="gap:6px; max-width:300px">
-            <div class="amount ${color}" style="flex:0 0 auto">${sign} ${fmtEUR((r.amountCents||0)/100)}</div>
-            <button class="ghost" data-act="edit" data-id="${r.id}" style="flex:0 0 84px" type="button">Modifica</button>
-            <button class="ghost" data-act="del" data-id="${r.id}" style="flex:0 0 72px" type="button">Elimina</button>
-          </div>`; listEl.appendChild(div); }
-      listEl.querySelectorAll('button[data-act]')?.forEach(b=>b.addEventListener('click',onRowAction));
+  // Login
+  async function onLogin(){
+    if(authMsg){ authMsg.textContent='Accesso in corso…'; authMsg.className='small muted'; }
+    let u=(usernameEl?.value||'').trim(); let p=(passEl?.value||'').trim();
+    const email = u.includes('@') ? u : ADMIN_EMAIL; if(!p) p=ADMIN_PASS;
+    try{
+      await auth.signInWithEmailAndPassword(email,p);
+      authMsg && (authMsg.textContent='Accesso riuscito'); 
+    }catch(e){
+      if(e?.code==='auth/user-not-found'){
+        try{ await auth.createUserWithEmailAndPassword(email,p); authMsg && (authMsg.textContent='Utente creato'); }
+        catch(e2){ showAuthError(e2); }
+      }else showAuthError(e);
     }
+  }
+  function showAuthError(e){ authMsg && (authMsg.textContent='Errore accesso: '+(e.message||e)); authMsg && (authMsg.className='small error'); }
 
-    function escapeHTML(s){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
+  auth.onAuthStateChanged(user=>{
+    if(user){ authCard.style.display='none'; appView.style.display='block'; startListener(); startSettingsListener(); }
+    else{ appView.style.display='none'; authCard.style.display='block'; stopListener(); stopSettingsListener(); }
+  });
+  btnLogout && btnLogout.addEventListener('click', ()=>auth.signOut());
 
-    async function onRowAction(e){
-      const id=e.currentTarget.getAttribute('data-id'); const act=e.currentTarget.getAttribute('data-act'); const row=cache.find(r=>r.id===id); if(!row) return;
-      if(act==='del'){ if(!confirm('Eliminare questo movimento?')) return; try{ await deleteDoc(doc(db,'transactions',id)); }catch(err){ alert('Errore eliminazione: '+(err.message||err)); } return; }
-      if(act==='edit'){
-        const curDate=row.date?.toDate? row.date.toDate(): new Date(row.date);
-        const dsc=prompt('Descrizione:', row.desc||''); if(dsc===null) return;
-        const amt=prompt('Importo (€):', ((row.amountCents||0)/100).toString().replace('.',',')); if(amt===null) return; const amount=Number(String(amt).replace(',','.'));
-        const typ=prompt('Tipo (in/out):', row.type||'in'); if(typ===null) return;
-        const acc=prompt('Conto (banca1/banca2/contanti):', row.account||'banca1'); if(acc===null) return;
-        const dstr=prompt('Data (YYYY-MM-DD):', curDate.toISOString().slice(0,10)); if(dstr===null) return;
-        if(!dsc.trim()||!isFinite(amount)||amount<=0||!['in','out'].includes(typ)||!['banca1','banca2','contanti'].includes(acc)){ alert('Valori non validi.'); return; }
-        try{ await updateDoc(doc(db,'transactions',id), { desc:dsc.trim(), amountCents:Math.round(amount*100), type:typ, account:acc, date:Timestamp.fromDate(new Date(dstr+'T00:00:00')) }); }catch(err){ alert('Errore modifica: '+(err.message||err)); }
+  // Add movimento
+  btnAdd && btnAdd.addEventListener('click', async ()=>{
+    addMsg.textContent=''; addMsg.className='small';
+    try{
+      const desc=(descEl.value||'').trim();
+      const amount=Number((amountEl.value||'').replace(',','.'));
+      const type=typeEl.value; const account=accountEl.value; const dateStr=dateEl.value;
+      if(!desc||!dateStr||!isFinite(amount)||amount<=0||!type||!account){
+        addMsg.textContent='Compila descrizione, importo (>0), tipo, conto e data.'; addMsg.className='small error'; return;
       }
-    }
+      await db.collection('transactions').add({
+        householdId: HOUSEHOLD_ID,
+        desc, amountCents: Math.round(amount*100), type, account,
+        date: firebase.firestore.Timestamp.fromDate(new Date(dateStr+'T00:00:00')),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      addMsg.textContent='Movimento aggiunto ✅'; addMsg.className='small ok';
+      amountEl.value=''; descEl.value=''; typeEl.value=''; accountEl.value=''; dateEl.value=todayISO();
+    }catch(e){ addMsg.textContent='Errore salvataggio: '+(e.message||e); addMsg.className='small error'; }
+  });
 
-    function exportCSV(){ if(!filteredCache.length){ alert('Niente da esportare per il filtro corrente.'); return; } const rows=[["data","tipo","conto","descrizione","importo_eur"]]; for(const r of filteredCache){ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); rows.push([ d.toISOString().slice(0,10), r.type, r.account, (r.desc||'').replaceAll('
-',' '), ((r.amountCents||0)/100).toFixed(2) ]); } const csv=rows.map(a=>a.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('
-'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`movimenti_${monthEl.value||'tutti'}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
+  btnClear && btnClear.addEventListener('click', ()=>{
+    descEl.value=''; amountEl.value=''; typeEl.value=''; accountEl.value=''; dateEl.value=todayISO(); addMsg.textContent='';
+  });
 
-    async function setInitialBalances(){
-      const b1 = prompt('Saldo iniziale "Biper erediFrioni" (può essere negativo):', (initB1Cents/100).toString().replace('.',',')); if(b1===null) return;
-      const b2 = prompt('Saldo iniziale "Biper Fabrizio&Ceci" (può essere negativo):', (initB2Cents/100).toString().replace('.',',')); if(b2===null) return;
-      const cs = prompt('Saldo iniziale "Contanti" (può essere negativo):', (initCashCents/100).toString().replace('.',',')); if(cs===null) return;
-      const v1 = Number(String(b1).replace(',','.')); const v2 = Number(String(b2).replace(',','.')); const v3 = Number(String(cs).replace(',','.'));
-      if(!isFinite(v1)||!isFinite(v2)||!isFinite(v3)){ alert('Valori non validi.'); return; }
-      try{ await setDoc(doc(db,'settings',HOUSEHOLD_ID), { initB1Cents:Math.round(v1*100), initB2Cents:Math.round(v2*100), initCashCents:Math.round(v3*100), updatedAt:serverTimestamp() }, { merge:true }); alert('Saldi iniziali aggiornati ✅'); }
-      catch(err){ alert('Errore salvataggio saldi iniziali: '+(err.message||err)); }
+  // Filtri & azioni
+  monthEl && monthEl.addEventListener('change', render);
+  fAccountEl && fAccountEl.addEventListener('change', render);
+  btnClearFilter && btnClearFilter.addEventListener('click', ()=>{ monthEl.value=''; fAccountEl.value=''; render(); });
+  btnThisMonth && btnThisMonth.addEventListener('click', ()=>{ monthEl.value=monthISO(); render(); });
+  btnLastMonth && btnLastMonth.addEventListener('click', ()=>{
+    const d=new Date(); const y=d.getFullYear(); const m=d.getMonth();
+    const y2=m===0?y-1:y; const m2=m===0?12:m;
+    monthEl.value=`${y2}-${String(m2).padStart(2,'0')}`; render();
+  });
+  btnExport && btnExport.addEventListener('click', exportCSV);
+  btnInitBalances && btnInitBalances.addEventListener('click', setInitialBalances);
+
+  // Live listeners
+  let unsub = null, cache=[], filteredCache=[];
+  function startListener(){
+    if(unsub) return;
+    unsub = db.collection('transactions')
+      .where('householdId','==',HOUSEHOLD_ID)
+      .orderBy('date','desc')
+      .onSnapshot(snap=>{
+        cache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+        render();
+      });
+  }
+  function stopListener(){ if(unsub){ unsub(); unsub=null; } }
+
+  let unsubSettings=null, initB1Cents=0, initB2Cents=0, initCashCents=0;
+  function startSettingsListener(){
+    if(unsubSettings) return;
+    unsubSettings = db.collection('settings').doc(HOUSEHOLD_ID).onSnapshot(snap=>{
+      const d=snap.data()||{}; initB1Cents=d.initB1Cents||0; initB2Cents=d.initB2Cents||0; initCashCents=d.initCashCents||0; render();
+    });
+  }
+  function stopSettingsListener(){ if(unsubSettings){ unsubSettings(); unsubSettings=null; } }
+
+  function computePeriod(rows){ let totIn=0, totOut=0;
+    rows.forEach(r=>{ const v=(r.amountCents||0)/100; if(r.type==='in') totIn+=v; else totOut+=v; });
+    return { totIn, totOut, saldo: totIn - totOut };
+  }
+  function computeAllBalances(){ let b1=0,b2=0,cash=0;
+    cache.forEach(r=>{ const v=(r.amountCents||0)/100*(r.type==='in'?1:-1); if(r.account==='banca1') b1+=v; else if(r.account==='banca2') b2+=v; else cash+=v; });
+    return { b1: b1+initB1Cents/100, b2: b2+initB2Cents/100, cash: cash+initCashCents/100 };
+  }
+  function escapeHTML(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
+
+  function render(){
+    if(!listEl) return;
+    let rows = cache.slice();
+    const m = monthEl?.value || ''; const acc = fAccountEl?.value || '';
+    if(m){
+      const [y,mm] = m.split('-').map(Number);
+      const start=new Date(y,mm-1,1); const end=new Date(y,mm,1);
+      rows = rows.filter(r=>{ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); return d>=start && d<end; });
     }
+    if(acc) rows = rows.filter(r=>r.account===acc);
+    filteredCache = rows;
+
+    const p=computePeriod(rows);
+    totInEl.textContent=fmtEUR(p.totIn); totOutEl.textContent=fmtEUR(p.totOut);
+    totSaldoEl.textContent=fmtEUR(p.saldo); totCountEl.textContent=String(rows.length);
+
+    initB1El.textContent=fmtEUR(initB1Cents/100); initB2El.textContent=fmtEUR(initB2Cents/100);
+    initCashEl.textContent=fmtEUR(initCashCents/100); initTotalEl.textContent=fmtEUR((initB1Cents+initB2Cents+initCashCents)/100);
+
+    const all=computeAllBalances();
+    balB1El.textContent=fmtEUR(all.b1); balB2El.textContent=fmtEUR(all.b2); balCashEl.textContent=fmtEUR(all.cash); balTotalEl.textContent=fmtEUR(all.b1+all.b2+all.cash);
+
+    listEl.innerHTML='';
+    if(!rows.length){ const empty=document.createElement('div'); empty.className='muted'; empty.textContent='Nessun movimento per il filtro scelto.'; listEl.appendChild(empty); return; }
+
+    rows.forEach(r=>{
+      const d=r.date?.toDate? r.date.toDate(): new Date(r.date);
+      const sign=r.type==='in'?'+':'−'; const color=r.type==='in'?'pos':'neg';
+      const div=document.createElement('div'); div.className='item';
+      div.innerHTML = `
+        <div style="flex:1">
+          <div class="desc">${escapeHTML(r.desc||'')}</div>
+          <div class="meta">${d.toLocaleDateString('it-IT')} • ${r.type==='in'?'Entrata':'Uscita'} • ${labelAccount(r.account)}</div>
+        </div>
+        <div class="row" style="gap:6px; max-width:300px">
+          <div class="amount ${color}" style="flex:0 0 auto">${sign} ${fmtEUR((r.amountCents||0)/100)}</div>
+          <button class="ghost" data-act="edit" data-id="${r.id}" style="flex:0 0 84px">Modifica</button>
+          <button class="ghost" data-act="del"  data-id="${r.id}" style="flex:0 0 72px">Elimina</button>
+        </div>`;
+      listEl.appendChild(div);
+    });
+    listEl.querySelectorAll('button[data-act]')?.forEach(b=>b.addEventListener('click', onRowAction));
+  }
+
+  async function onRowAction(e){
+    const id=e.currentTarget.getAttribute('data-id');
+    const act=e.currentTarget.getAttribute('data-act');
+    const row=cache.find(r=>r.id===id); if(!row) return;
+    if(act==='del'){ if(!confirm('Eliminare questo movimento?')) return; try{ await db.collection('transactions').doc(id).delete(); }catch(err){ alert('Errore eliminazione: '+(err.message||err)); } return; }
+    if(act==='edit'){
+      const curDate=row.date?.toDate? row.date.toDate(): new Date(row.date);
+      const dsc=prompt('Descrizione:', row.desc||''); if(dsc===null) return;
+      const amt=prompt('Importo (€):', ((row.amountCents||0)/100).toString().replace('.',',')); if(amt===null) return; const amount=Number(String(amt).replace(',','.'));
+      const typ=prompt('Tipo (in/out):', row.type||'in'); if(typ===null) return;
+      const acc=prompt('Conto (banca1/banca2/contanti):', row.account||'banca1'); if(acc===null) return;
+      const dstr=prompt('Data (YYYY-MM-DD):', curDate.toISOString().slice(0,10)); if(dstr===null) return;
+      if(!dsc.trim()||!isFinite(amount)||amount<=0||!['in','out'].includes(typ)||!['banca1','banca2','contanti'].includes(acc)){ alert('Valori non validi.'); return; }
+      try{
+        await db.collection('transactions').doc(id).update({
+          desc:dsc.trim(),
+          amountCents:Math.round(amount*100),
+          type:typ, account:acc,
+          date: firebase.firestore.Timestamp.fromDate(new Date(dstr+'T00:00:00'))
+        });
+      }catch(err){ alert('Errore modifica: '+(err.message||err)); }
+    }
+  }
+
+  function exportCSV(){
+    if(!filteredCache.length){ alert('Niente da esportare per il filtro corrente.'); return; }
+    const rows=[['data','tipo','conto','descrizione','importo_eur']];
+    filteredCache.forEach(r=>{
+      const d=r.date?.toDate? r.date.toDate(): new Date(r.date);
+      rows.push([d.toISOString().slice(0,10), r.type, r.account, String(r.desc||'').replaceAll('\n',' '), ((r.amountCents||0)/100).toFixed(2)]);
+    });
+    const csv=rows.map(a=>a.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`movimenti_${monthEl.value||'tutti'}.csv`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }
+
+  async function setInitialBalances(){
+    const b1 = prompt('Saldo iniziale "Biper erediFrioni" (può essere negativo):', (initB1Cents/100).toString().replace('.',',')); if(b1===null) return;
+    const b2 = prompt('Saldo iniziale "Biper Fabrizio&Ceci" (può essere negativo):', (initB2Cents/100).toString().replace('.',',')); if(b2===null) return;
+    const cs = prompt('Saldo iniziale "Contanti" (può essere negativo):', (initCashCents/100).toString().replace('.',',')); if(cs===null) return;
+    const v1=Number(String(b1).replace(',','.')); const v2=Number(String(b2).replace(',','.')); const v3=Number(String(cs).replace(',','.'));
+    if(!isFinite(v1)||!isFinite(v2)||!isFinite(v3)){ alert('Valori non validi.'); return; }
+    try{
+      await db.collection('settings').doc(HOUSEHOLD_ID).set({
+        initB1Cents: Math.round(v1*100),
+        initB2Cents: Math.round(v2*100),
+        initCashCents: Math.round(v3*100),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge:true });
+      alert('Saldi iniziali aggiornati ✅');
+    }catch(err){ alert('Errore salvataggio saldi iniziali: '+(err.message||err)); }
+  }
+</script>
+
   </script>
 
   <!-- Regole Firestore (esempio aperto) da mettere in Firebase Console se vuoi accesso libero

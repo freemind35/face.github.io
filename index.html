@@ -64,12 +64,12 @@
           <label>Password</label>
           <div class="row" style="gap:6px">
             <input id="password" type="password" placeholder="min 6 caratteri (es. adminadmin)" autocomplete="current-password" />
-            <button class="ghost" id="togglePw" style="max-width:110px">Mostra</button>
+            <button class="ghost" id="togglePw" style="max-width:110px" type="button">Mostra</button>
           </div>
         </div>
       </div>
       <div class="row" style="margin-top:10px">
-        <button class="primary" id="btnLogin" type="button" onclick="_doLogin && _doLogin()">Entra</button>
+        <button class="primary" id="btnLogin" type="button" onclick="window._doLogin && window._doLogin()">Entra</button>
       </div>
       <div class="small muted" style="margin-top:8px">Credenziali consigliate: <b>admin@local.com / adminadmin</b></div>
       <div id="authMsg" class="small"></div>
@@ -114,11 +114,11 @@
             <div class="small muted">✔️ Puoi inserire movimenti <b>precedenti</b> alla data attuale.</div>
           </div>
           <div style="display:flex;align-items:flex-end">
-            <button class="primary" id="btnAdd">Aggiungi</button>
+            <button class="primary" id="btnAdd" type="button">Aggiungi</button>
           </div>
         </div>
         <div class="row" style="margin-top:10px">
-          <button class="ghost" id="btnClear">Pulisci</button>
+          <button class="ghost" id="btnClear" type="button">Pulisci</button>
           <div id="addMsg" class="small"></div>
         </div>
       </section>
@@ -140,12 +140,12 @@
             </select>
           </div>
           <div class="row" style="gap:8px; flex:2">
-            <button class="ghost" id="btnThisMonth" style="max-width:160px">Questo mese</button>
-            <button class="ghost" id="btnLastMonth" style="max-width:160px">Mese scorso</button>
-            <button class="ghost" id="btnClearFilter" style="max-width:120px">Tutti</button>
-            <button class="ghost" id="btnInitBalances" style="max-width:160px">Saldi iniziali</button>
-            <button class="ghost" id="btnExport" style="max-width:140px">Esporta CSV</button>
-            <button class="ghost" id="btnLogout" style="max-width:120px">Esci</button>
+            <button class="ghost" id="btnThisMonth" style="max-width:160px" type="button">Questo mese</button>
+            <button class="ghost" id="btnLastMonth" style="max-width:160px" type="button">Mese scorso</button>
+            <button class="ghost" id="btnClearFilter" style="max-width:120px" type="button">Tutti</button>
+            <button class="ghost" id="btnInitBalances" style="max-width:160px" type="button">Saldi iniziali</button>
+            <button class="ghost" id="btnExport" style="max-width:140px" type="button">Esporta CSV</button>
+            <button class="ghost" id="btnLogout" style="max-width:120px" type="button">Esci</button>
           </div>
         </div>
 
@@ -193,79 +193,67 @@
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, orderBy, Timestamp, serverTimestamp, doc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    let __bootOk=false;
-    // Error handlers visibili nella UI
-    window.addEventListener('error',(e)=>{
-      const m=document.getElementById('authMsg');
-      if(m){ m.textContent='Errore script: '+(e.message||e); m.className='small error'; }
-    });
-    window.addEventListener('unhandledrejection',(e)=>{
-      const m=document.getElementById('authMsg');
-      if(m){ m.textContent='Errore: '+(e.reason?.message||e.reason||e); m.className='small error'; }
-    });
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    enableIndexedDbPersistence(db).catch(()=>{});
 
-    // === WIRING LOGIN SICURO ===
-    function wireLogin(){
-      try{
-        if(btnLogin && !btnLogin.dataset.wired){
-          btnLogin.addEventListener('click', onLogin);
-          btnLogin.dataset.wired='1';
-        }
-        // fallback inline
-        window._doLogin = onLogin;
-      }catch(_){}
-    }
+    // Admin shortcut
+    const ADMIN_EMAIL='admin@local.com';
+    const ADMIN_PASS='adminadmin';
 
-    async function onLogin(){
-      try{
-        if(authMsg){ authMsg.textContent='Accesso in corso...'; authMsg.className='small muted'; }
-        let u=(usernameEl?.value||'').trim();
-        let p=(passEl?.value||'').trim();
-        const email = u.includes('@') ? u : ADMIN_EMAIL; if(!p) p=ADMIN_PASS;
-        try{
-          await signInWithEmailAndPassword(auth,email,p);
-          if(authMsg){ authMsg.textContent='Accesso riuscito'; authMsg.className='small ok'; }
-        }catch(e){
-          if(e?.code==='auth/user-not-found'){
-            await createUserWithEmailAndPassword(auth,email,p);
-            if(authMsg){ authMsg.textContent='Utente creato'; authMsg.className='small ok'; }
-          }else{
-            throw e;
-          }
-        }
-      }catch(e){ if(authMsg){ authMsg.textContent='Errore accesso: '+(e.message||e); authMsg.className='small error'; } }
-    }
+    // Helpers
+    const fmtEUR = (n) => new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(n);
+    const todayISO = () => new Date().toISOString().slice(0,10);
+    const monthISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+    const labelAccount = (a) => a==='banca1'?'Biper erediFrioni': a==='banca2'?'Biper Fabrizio&Ceci':'Contanti';
 
-    function initUI(){
-      try{
-        if(dateEl){ dateEl.value=todayISO(); dateEl.max=todayISO(); }
-        if(monthEl){ monthEl.value=monthISO(); }
-        wireLogin();
-        if(togglePw && passEl){
-          togglePw.addEventListener('click', ()=>{
-            const isPwd = passEl.type==='password';
-            passEl.type = isPwd?'text':'password';
-            togglePw.textContent = isPwd?'Nascondi':'Mostra';
-          });
-        }
-        [usernameEl, passEl].forEach(el=>{ try{ el&&el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ onLogin(); }});}catch(_){} });
-      }catch(e){
-        const m=document.getElementById('authMsg');
-        if(m){ m.textContent='Init UI error: '+(e.message||e); m.className='small error'; }
-      }
-    }
+    // DOM refs
+    const authCard=document.getElementById('authCard');
+    const appView=document.getElementById('app');
+    const usernameEl=document.getElementById('username') || document.getElementById('email');
+    const passEl=document.getElementById('password');
+    const togglePw=document.getElementById('togglePw');
+    const btnLogin=document.getElementById('btnLogin');
+    const btnLogout=document.getElementById('btnLogout');
+    const authMsg=document.getElementById('authMsg');
 
-    if(document.readyState==='loading'){
-      document.addEventListener('DOMContentLoaded', initUI);
-    }else{
-      initUI();
-    }else{
-      initUI();
-    } dateEl.max=todayISO(); monthEl.value=monthISO();
-      if(btnLogin) btnLogin.addEventListener('click', onLogin);
-      togglePw?.addEventListener('click', ()=>{ const isPwd=passEl.type==='password'; passEl.type=isPwd?'text':'password'; togglePw.textContent=isPwd?'Nascondi':'Mostra'; });
-    });
+    const descEl=document.getElementById('desc');
+    const amountEl=document.getElementById('amount');
+    const typeEl=document.getElementById('type');
+    const accountEl=document.getElementById('account');
+    const dateEl=document.getElementById('date');
+    const addMsg=document.getElementById('addMsg');
+    const btnAdd=document.getElementById('btnAdd');
+    const btnClear=document.getElementById('btnClear');
 
+    const monthEl=document.getElementById('month');
+    const fAccountEl=document.getElementById('fAccount');
+    const btnThisMonth=document.getElementById('btnThisMonth');
+    const btnLastMonth=document.getElementById('btnLastMonth');
+    const btnClearFilter=document.getElementById('btnClearFilter');
+    const btnExport=document.getElementById('btnExport');
+    const btnInitBalances=document.getElementById('btnInitBalances');
+
+    const listEl=document.getElementById('list');
+    const totSaldoEl=document.getElementById('totSaldo');
+    const totInEl=document.getElementById('totIn');
+    const totOutEl=document.getElementById('totOut');
+    const totCountEl=document.getElementById('totCount');
+    const initB1El=document.getElementById('initB1');
+    const initB2El=document.getElementById('initB2');
+    const initCashEl=document.getElementById('initCash');
+    const initTotalEl=document.getElementById('initTotal');
+    const balB1El=document.getElementById('balB1');
+    const balB2El=document.getElementById('balB2');
+    const balCashEl=document.getElementById('balCash');
+    const balTotalEl=document.getElementById('balTotal');
+
+    // ==== ERRORI VISIBILI ====
+    window.addEventListener('error',(e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Errore script: '+(e.message||e); m.className='small error'; } });
+    window.addEventListener('unhandledrejection',(e)=>{ const m=document.getElementById('authMsg'); if(m){ m.textContent='Errore: '+(e.reason?.message||e.reason||e); m.className='small error'; } });
+
+    // ==== LOGIN ====
     async function onLogin(){
       try{
         if(authMsg){ authMsg.textContent='Accesso in corso...'; authMsg.className='small muted'; }
@@ -284,9 +272,29 @@
         }
       }catch(e){ if(authMsg){ authMsg.textContent='Errore accesso: '+(e.message||e); authMsg.className='small error'; } }
     }
-    // esponi fallback globale per onclick inline
+    // fallback per onclick inline
     window._doLogin = onLogin;
-      catch(e){ if(e?.code==='auth/user-not-found'){ try{ await createUserWithEmailAndPassword(auth,email,p); authMsg.textContent='Utente creato'; authMsg.className='small ok'; }catch(e2){ authMsg.textContent='Errore: '+(e2.message||e2); authMsg.className='small error'; } } else { authMsg.textContent='Errore accesso: '+(e.message||e); authMsg.className='small error'; } }
+
+    function wireLogin(){
+      if(btnLogin && !btnLogin.dataset.wired){ btnLogin.addEventListener('click', onLogin); btnLogin.dataset.wired='1'; }
+    }
+
+    function initUI(){
+      try{
+        if(dateEl){ dateEl.value=todayISO(); dateEl.max=todayISO(); }
+        if(monthEl){ monthEl.value=monthISO(); }
+        wireLogin();
+        if(togglePw && passEl){
+          togglePw.addEventListener('click', ()=>{ const isPwd=passEl.type==='password'; passEl.type=isPwd?'text':'password'; togglePw.textContent=isPwd?'Nascondi':'Mostra'; });
+        }
+        [usernameEl, passEl].forEach(el=>{ try{ el&&el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ onLogin(); }});}catch(_){} });
+      }catch(e){ const m=document.getElementById('authMsg'); if(m){ m.textContent='Init UI error: '+(e.message||e); m.className='small error'; } }
+    }
+
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded', initUI);
+    }else{
+      initUI();
     }
 
     // Stato auth
@@ -335,74 +343,9 @@
 
     function computeAllBalances(){ let b1=0,b2=0,cash=0; for(const r of cache){ const v=(r.amountCents||0)/100*(r.type==='in'?1:-1); if(r.account==='banca1') b1+=v; else if(r.account==='banca2') b2+=v; else cash+=v; } return { b1: b1+initB1Cents/100, b2: b2+initB2Cents/100, cash: cash+initCashCents/100 } }
 
-    function toDateAny(x){
-      try{
-        if(x?.toDate) return x.toDate();            // Firestore Timestamp
-        if(x instanceof Date) return x;             // Date
-        if(typeof x === 'string') return new Date(x);// ISO/string
-        if(x?.seconds) return new Date(x.seconds*1000); // {seconds,nanos}
-      }catch(e){}
-      return new Date();
-    }
-
     function render(){
-      let rows = cache.slice();
-      const m = monthEl.value;
-      const acc = fAccountEl.value;
-
-      // Filtro mese robusto su qualsiasi formato di data
-      if(m){
-        const [y,mm] = m.split('-').map(Number);
-        const start = new Date(y, mm-1, 1);
-        const end   = new Date(y, mm,   1);
-        rows = rows.filter(r=>{ const d = toDateAny(r.date); return d>=start && d<end; });
-      }
-      if(acc) rows = rows.filter(r=>r.account===acc);
-      filteredCache = rows;
-
-      const p = computePeriod(rows);
-      totInEl.textContent  = fmtEUR(p.totIn);
-      totOutEl.textContent = fmtEUR(p.totOut);
-      totSaldoEl.textContent = fmtEUR(p.saldo);
-      totCountEl.textContent = String(rows.length);
-
-      initB1El.textContent = fmtEUR(initB1Cents/100);
-      initB2El.textContent = fmtEUR(initB2Cents/100);
-      initCashEl.textContent = fmtEUR(initCashCents/100);
-      initTotalEl.textContent = fmtEUR((initB1Cents+initB2Cents+initCashCents)/100);
-
-      const all = computeAllBalances();
-      balB1El.textContent = fmtEUR(all.b1);
-      balB2El.textContent = fmtEUR(all.b2);
-      balCashEl.textContent = fmtEUR(all.cash);
-      balTotalEl.textContent = fmtEUR(all.b1+all.b2+all.cash);
-
-      listEl.innerHTML='';
-      if(!rows.length){
-        const empty=document.createElement('div'); empty.className='muted';
-        empty.textContent='Nessun movimento per il filtro scelto.'; listEl.appendChild(empty); return;
-      }
-
-      for(const r of rows){
-        const d = toDateAny(r.date);
-        const sign  = r.type==='in'?'+':'−';
-        const color = r.type==='in'?'pos':'neg';
-        const div=document.createElement('div');
-        div.className='item';
-        div.innerHTML=`
-          <div style="flex:1">
-            <div class="desc">${escapeHTML(r.desc||'')}</div>
-            <div class="meta">${d.toLocaleDateString('it-IT')} • ${r.type==='in'?'Entrata':'Uscita'} • ${labelAccount(r.account)}</div>
-          </div>
-          <div class="row" style="gap:6px; max-width:300px">
-            <div class="amount ${color}" style="flex:0 0 auto">${sign} ${fmtEUR((r.amountCents||0)/100)}</div>
-            <button class="ghost" data-act="edit" data-id="${r.id}" style="flex:0 0 84px">Modifica</button>
-            <button class="ghost" data-act="del" data-id="${r.id}" style="flex:0 0 72px">Elimina</button>
-          </div>`;
-        listEl.appendChild(div);
-      }
-      listEl.querySelectorAll('button[data-act]')?.forEach(b=>b.addEventListener('click',onRowAction));
-    }); }
+      let rows=cache.slice(); const m=monthEl.value; const acc=fAccountEl.value;
+      if(m){ const [y,mm]=m.split('-').map(Number); const start=new Date(y,mm-1,1); const end=new Date(y,mm,1); rows=rows.filter(r=>{ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); return d>=start && d<end; }); }
       if(acc) rows=rows.filter(r=>r.account===acc);
       filteredCache=rows;
 
@@ -418,8 +361,8 @@
           </div>
           <div class="row" style="gap:6px; max-width:300px">
             <div class="amount ${color}" style="flex:0 0 auto">${sign} ${fmtEUR((r.amountCents||0)/100)}</div>
-            <button class="ghost" data-act="edit" data-id="${r.id}" style="flex:0 0 84px">Modifica</button>
-            <button class="ghost" data-act="del" data-id="${r.id}" style="flex:0 0 72px">Elimina</button>
+            <button class="ghost" data-act="edit" data-id="${r.id}" style="flex:0 0 84px" type="button">Modifica</button>
+            <button class="ghost" data-act="del" data-id="${r.id}" style="flex:0 0 72px" type="button">Elimina</button>
           </div>`; listEl.appendChild(div); }
       listEl.querySelectorAll('button[data-act]')?.forEach(b=>b.addEventListener('click',onRowAction));
     }
@@ -441,7 +384,9 @@
       }
     }
 
-    function exportCSV(){ if(!filteredCache.length){ alert('Niente da esportare per il filtro corrente.'); return; } const rows=[['data','tipo','conto','descrizione','importo_eur']]; for(const r of filteredCache){ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); rows.push([ d.toISOString().slice(0,10), r.type, r.account, (r.desc||'').replaceAll('\n',' '), ((r.amountCents||0)/100).toFixed(2) ]); } const csv=rows.map(a=>a.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`movimenti_${monthEl.value||'tutti'}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
+    function exportCSV(){ if(!filteredCache.length){ alert('Niente da esportare per il filtro corrente.'); return; } const rows=[["data","tipo","conto","descrizione","importo_eur"]]; for(const r of filteredCache){ const d=r.date?.toDate? r.date.toDate(): new Date(r.date); rows.push([ d.toISOString().slice(0,10), r.type, r.account, (r.desc||'').replaceAll('
+',' '), ((r.amountCents||0)/100).toFixed(2) ]); } const csv=rows.map(a=>a.map(x=>`"${String(x).replaceAll('"','""')}"`).join(',')).join('
+'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`movimenti_${monthEl.value||'tutti'}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
 
     async function setInitialBalances(){
       const b1 = prompt('Saldo iniziale "Biper erediFrioni" (può essere negativo):', (initB1Cents/100).toString().replace('.',',')); if(b1===null) return;
@@ -454,7 +399,7 @@
     }
   </script>
 
-  <!-- Regole Firestore aperte (solo se desideri accesso libero)
+  <!-- Regole Firestore (esempio aperto) da mettere in Firebase Console se vuoi accesso libero
   rules_version = '2';
   service cloud.firestore {
     match /databases/{database}/documents {

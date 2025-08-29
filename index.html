@@ -252,8 +252,38 @@
     const balTotalEl=document.getElementById('balTotal');
 
     // Defaults
-    document.addEventListener('DOMContentLoaded', ()=>{
-      dateEl.value=todayISO(); dateEl.max=todayISO(); monthEl.value=monthISO();
+    function wireLogin(){
+      try{
+        if(btnLogin && !btnLogin.dataset.wired){
+          btnLogin.addEventListener('click', onLogin);
+          btnLogin.dataset.wired='1';
+        }
+      }catch(_){/* noop */}
+    }
+
+    function initUI(){
+      try{
+        if(dateEl){ dateEl.value=todayISO(); dateEl.max=todayISO(); }
+        if(monthEl){ monthEl.value=monthISO(); }
+        wireLogin();
+        if(togglePw && passEl){
+          togglePw.addEventListener('click', ()=>{
+            const isPwd = passEl.type==='password';
+            passEl.type = isPwd?'text':'password';
+            togglePw.textContent = isPwd?'Nascondi':'Mostra';
+          });
+        }
+      }catch(e){
+        const m=document.getElementById('authMsg');
+        if(m){ m.textContent='Init UI error: '+(e.message||e); m.className='small error'; }
+      }
+    }
+
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded', initUI);
+    }else{
+      initUI();
+    } dateEl.max=todayISO(); monthEl.value=monthISO();
       if(btnLogin) btnLogin.addEventListener('click', onLogin);
       togglePw?.addEventListener('click', ()=>{ const isPwd=passEl.type==='password'; passEl.type=isPwd?'text':'password'; togglePw.textContent=isPwd?'Nascondi':'Mostra'; });
     });
